@@ -384,7 +384,7 @@ static bt_status_t init(rtkbt_callbacks_t* callbacks)
     rtkbt_callbacks = callbacks;
     UIPC_Init(0);
     loadplugins(&rtkbt_api_callbacks);
-    rtkbt_api_Hook(RTKBT_HOOK_ENABLE_BT_COMPLETE, (void *)BT_STATE_ON, 0);
+    //rtkbt_api_Hook(RTKBT_HOOK_ENABLE_BT_COMPLETE, (void *)BT_STATE_ON, 0);
     return BT_STATUS_SUCCESS;
 }
 static void cleanup()

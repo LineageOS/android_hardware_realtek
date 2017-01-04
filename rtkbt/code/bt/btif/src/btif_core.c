@@ -334,6 +334,68 @@ static bool btif_fetch_property(const char *key, bt_bdaddr_t *addr) {
     return FALSE;
 }
 
+#include <sys/ioctl.h>
+
+typedef     unsigned short      uint16;
+typedef     unsigned long       uint32;
+typedef     unsigned char       uint8;
+
+#define VENDOR_REQ_TAG      0x56524551
+#define VENDOR_READ_IO      _IOW('v', 0x01, unsigned int)
+#define VENDOR_WRITE_IO     _IOW('v', 0x02, unsigned int)
+
+#define VENDOR_SN_ID        1
+#define VENDOR_WIFI_MAC_ID  2
+#define VENDOR_LAN_MAC_ID   3
+#define VENDOR_BLUETOOTH_ID 4
+
+struct rk_vendor_req {
+    uint32 tag;
+    uint16 id;
+    uint16 len;
+    uint8 data[1];
+};
+
+// rw: 0, read; 1, write
+// return 0 is success, other fail
+static int bt_addr_vendor_storage_read_or_write(int rw, char *buf, int len)
+{
+    int ret ;
+    uint8 p_buf[64];
+    struct rk_vendor_req *req;
+
+    req = (struct rk_vendor_req *)p_buf;
+    int sys_fd = open("/dev/vendor_storage",O_RDWR,0);
+    if(sys_fd < 0){
+        BTIF_TRACE_ERROR("vendor_storage open fail\n");
+        return -1;
+    }
+
+    req->tag = VENDOR_REQ_TAG;
+    req->id = VENDOR_BLUETOOTH_ID;
+
+    if (rw == 0) {
+        req->len = 6;
+        ret = ioctl(sys_fd, VENDOR_READ_IO, req);
+        if (!ret) {
+            memcpy(buf, req->data, 6);
+        }
+    } else {
+        req->len = 6;
+        for (int i = 0; i < 6; i++)
+            req->data[i] = buf[i];
+        ret = ioctl(sys_fd, VENDOR_WRITE_IO, req);
+    }
+    if(ret){
+        BTIF_TRACE_ERROR("vendor storage %s error\n", rw ? "write":"read");
+        return -2;
+    }
+
+    BTIF_TRACE_ERROR("vendor storage %s success\n", rw ? "write":"read");
+
+    return 0;
+}
+
 static void btif_fetch_local_bdaddr(bt_bdaddr_t *local_addr)
 {
     char val[PROPERTY_VALUE_MAX] = {0};
@@ -342,7 +404,45 @@ static void btif_fetch_local_bdaddr(bt_bdaddr_t *local_addr)
 
     const uint8_t null_bdaddr[BD_ADDR_LEN] = {0,0,0,0,0,0};
 
-    {// cmy@2012-11-28: Get local bdaddr from vflash
+    if (!valid_bda) {
+        int ret;
+        char bd_addr[6] = {0};
+        ret = bt_addr_vendor_storage_read_or_write(0, bd_addr, 6);
+        if (ret == 0) {
+            /*local_addr->address[0] = bd_addr[5];
+            local_addr->address[1] = bd_addr[4];
+            local_addr->address[2] = bd_addr[3];
+            local_addr->address[3] = bd_addr[2];
+            local_addr->address[4] = bd_addr[1];
+            local_addr->address[5] = bd_addr[0];*/
+            memcpy(local_addr->address, bd_addr, 6);
+            valid_bda = TRUE;
+            BTIF_TRACE_ERROR("Got local bdaddr for vendor storage %02X:%02X:%02X:%02X:%02X:%02X",
+                local_addr->address[0], local_addr->address[1], local_addr->address[2],
+                local_addr->address[3], local_addr->address[4], local_addr->address[5]);
+        } else if (ret == -2) {
+            local_addr->address[0] = 0x22;
+            local_addr->address[1] = 0x22;
+        	local_addr->address[2] = (uint8_t) osi_rand();
+        	local_addr->address[3] = (uint8_t) osi_rand();
+        	local_addr->address[4] = (uint8_t) osi_rand();
+        	local_addr->address[5] = (uint8_t) osi_rand();
+            /*bd_addr[5] = local_addr->address[0];
+            bd_addr[4] = local_addr->address[1];
+            bd_addr[3] = local_addr->address[2];
+            bd_addr[2] = local_addr->address[3];
+            bd_addr[1] = local_addr->address[4];
+            bd_addr[0] = local_addr->address[5];*/
+            valid_bda = TRUE;
+            memcpy(bd_addr, local_addr->address, 6);
+            BTIF_TRACE_ERROR("Generate random bdaddr and save to vendor storage %02X:%02X:%02X:%02X:%02X:%02X", 
+                local_addr->address[0], local_addr->address[1], local_addr->address[2], 
+                local_addr->address[3], local_addr->address[4], local_addr->address[5]);
+            bt_addr_vendor_storage_read_or_write(1, bd_addr, 6);
+        }
+    }
+
+    if (!valid_bda) {// cmy@2012-11-28: Get local bdaddr from vflash
         int vflash_fd = open("/dev/vflash", O_RDONLY);
         if (vflash_fd > 0)
         {

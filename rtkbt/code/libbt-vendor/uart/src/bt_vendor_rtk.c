@@ -25,7 +25,8 @@
  ******************************************************************************/
 
 #undef NDEBUG
-#define LOG_TAG "bt_vendor"
+#define LOG_TAG "bt_vendor_uart"
+#define RTKBT_RELEASE_NAME "20170109_TV_ANDROID_7.x"
 #include <utils/Log.h>
 #include "bt_vendor_rtk.h"
 #include "upio.h"
@@ -85,6 +86,7 @@ static const tUSERIAL_CFG userial_init_cfg =
 
 static int init(const bt_vendor_callbacks_t* p_cb, unsigned char *local_bdaddr)
 {
+    ALOGI("RTKBT_RELEASE_NAME: %s",RTKBT_RELEASE_NAME);
     ALOGI("init");
 
     if (p_cb == NULL)

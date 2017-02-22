@@ -24,7 +24,8 @@
  *
  ******************************************************************************/
 
-#define LOG_TAG "bt_vendor"
+#define LOG_TAG "bt_vendor_usb"
+#define RTKBT_RELEASE_NAME "20170109_TV_ANDROID_7.x"
 
 #include <fcntl.h>
 #include <errno.h>
@@ -78,6 +79,7 @@ static vnd_userial_cb_t vnd_userial;
 
 static int init(const bt_vendor_callbacks_t* p_cb, unsigned char *local_bdaddr,char *bt_device_node)
 {
+    ALOGI("RTKBT_RELEASE_NAME: %s",RTKBT_RELEASE_NAME);
     ALOGI("init");
 
     if (p_cb == NULL)

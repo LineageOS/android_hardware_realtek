@@ -45,6 +45,10 @@ static void smp_br_connect_callback(UINT16 channel, BD_ADDR bd_addr, BOOLEAN con
                                     tBT_TRANSPORT transport);
 static void smp_br_data_received(UINT16 channel, BD_ADDR bd_addr, BT_HDR *p_buf);
 
+#ifdef BLUETOOTH_RTK
+#include "btcore/include/bdaddr.h"
+BOOLEAN check_cod_hid(const bt_bdaddr_t *remote_bdaddr);
+#endif
 /*******************************************************************************
 **
 ** Function         smp_l2cap_if_init
@@ -159,7 +163,20 @@ static void smp_data_received(UINT16 channel, BD_ADDR bd_addr, BT_HDR *p_buf)
         osi_free(p_buf);
         return;
     }
-
+#ifdef BLUETOOTH_RTK
+    bt_bdaddr_t bd_addr_t;
+    memcpy(bd_addr_t.address,&bd_addr[0],BD_ADDR_LEN);
+    if(check_cod_hid(&bd_addr_t)) {
+        SMP_TRACE_DEBUG("smp_data_received it is a hid device, ignore security request!");
+        if(SMP_OPCODE_SEC_REQ == cmd) {
+            osi_free(p_buf);
+            if(p_cb->state == SMP_STATE_IDLE) {
+                L2CA_RemoveFixedChnl (L2CAP_SMP_CID, bd_addr);
+            }
+            return;
+        }
+    }
+#endif
     /* reject the pairing request if there is an on-going SMP pairing */
     if (SMP_OPCODE_PAIRING_REQ == cmd || SMP_OPCODE_SEC_REQ == cmd)
     {

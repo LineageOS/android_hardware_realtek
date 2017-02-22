@@ -27,6 +27,7 @@
  ******************************************************************************/
 
 #define LOG_TAG "bt_hwcfg"
+#define RTKBT_RELEASE_NAME "20170109_TV_ANDROID_7.x"
 
 #include <utils/Log.h>
 #include <sys/types.h>
@@ -54,7 +55,7 @@
 /******************************************************************************
 **  Constants &  Macros
 ******************************************************************************/
-#define RTK_VERSION "4.1.0"
+#define RTK_VERSION "4.1.1"
 
 #ifndef BTHW_DBG
 #define BTHW_DBG FALSE
@@ -1393,21 +1394,22 @@ DOWNLOAD_FW:
 
                 if (hw_cfg_cb.patch_frag_idx < hw_cfg_cb.patch_frag_cnt)
                 {
+                    iIndexRx = hw_cfg_cb.patch_frag_idx?((hw_cfg_cb.patch_frag_idx-1)%0x7f+1):0;
                     if (hw_cfg_cb.patch_frag_idx == hw_cfg_cb.patch_frag_cnt - 1)
                     {
                         ALOGI("HW_CFG_DL_FW_PATCH: send last fw fragment");
-                        hw_cfg_cb.patch_frag_idx |= 0x80;
+                        iIndexRx |= 0x80;
                         hw_cfg_cb.patch_frag_len = hw_cfg_cb.patch_frag_tail;
                     }
                     else
                     {
-                        hw_cfg_cb.patch_frag_idx &= 0x7F;
+                        iIndexRx &= 0x7F;
                         hw_cfg_cb.patch_frag_len = PATCH_DATA_FIELD_MAX_SIZE;
                     }
                 }
 
-                is_proceeding = hci_download_patch_h4(p_buf, hw_cfg_cb.patch_frag_idx,
-                                    hw_cfg_cb.total_buf+(hw_cfg_cb.patch_frag_idx&0x7F)*PATCH_DATA_FIELD_MAX_SIZE,
+                is_proceeding = hci_download_patch_h4(p_buf, iIndexRx,
+                                    hw_cfg_cb.total_buf+(hw_cfg_cb.patch_frag_idx*PATCH_DATA_FIELD_MAX_SIZE),
                                     hw_cfg_cb.patch_frag_len);
                 break;
 
@@ -1502,6 +1504,7 @@ void hw_config_start(void)
     memset(&hw_cfg_cb, 0, sizeof(bt_hw_cfg_cb_t));
     hw_cfg_cb.dl_fw_flag = 1;
     hw_cfg_cb.chip_type = CHIPTYPE_NONE;
+    ALOGI("RTKBT_RELEASE_NAME: %s",RTKBT_RELEASE_NAME);
     ALOGI("\nRealtek libbt-vendor_uart Version %s \n",RTK_VERSION);
     HC_BT_HDR  *p_buf = NULL;
     uint8_t     *p;

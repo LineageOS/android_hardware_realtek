@@ -1857,11 +1857,11 @@ static void btif_media_task_enc_init(BT_HDR *p_msg)
             btif_media_cb.encoder.s16AllocationMethod, btif_media_cb.encoder.u16BitRate,
             btif_media_cb.encoder.s16SamplingFreq);
 
+    /* Reset entirely the SBC encoder */
+    SBC_Encoder_Init(&(btif_media_cb.encoder));
 #ifdef BLUETOOTH_RTK_COEX
     rtk_parse_manager_get_interface()->rtk_add_bitpool_to_fw(btif_media_cb.encoder.s16BitPool);
 #endif
-    /* Reset entirely the SBC encoder */
-    SBC_Encoder_Init(&(btif_media_cb.encoder));
 
     btif_media_cb.tx_sbc_frames = calculate_max_frames_per_packet();
 

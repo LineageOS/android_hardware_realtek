@@ -115,7 +115,9 @@ static void btm_sec_check_pending_enc_req (tBTM_SEC_DEV_REC  *p_dev_rec, tBT_TRA
 
 static BOOLEAN btm_sec_use_smp_br_chnl(tBTM_SEC_DEV_REC *p_dev_rec);
 static BOOLEAN btm_sec_is_master(tBTM_SEC_DEV_REC *p_dev_rec);
-
+#ifdef BLUETOOTH_RTK
+#include "bta_api.h"
+#endif
 /* TRUE - authenticated link key is possible */
 static const BOOLEAN btm_sec_io_map [BTM_IO_CAP_MAX][BTM_IO_CAP_MAX] =
 {
@@ -4253,6 +4255,9 @@ void btm_sec_encrypt_change (UINT16 handle, UINT8 status, UINT8 encr_enable)
         {
             p_dev_rec->sec_flags &= ~ (BTM_SEC_LE_LINK_KEY_KNOWN);
             p_dev_rec->ble.key_type = BTM_LE_KEY_NONE;
+#ifdef BLUETOOTH_RTK
+            BTA_DmRemoveDevice(p_dev_rec->bd_addr);
+#endif
         }
         btm_ble_link_encrypted(p_dev_rec->ble.pseudo_addr, encr_enable);
         return;

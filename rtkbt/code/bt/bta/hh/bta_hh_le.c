@@ -2142,7 +2142,11 @@ void bta_hh_le_input_rpt_notify(tBTA_GATTC_NOTIFY *p_data)
 
     const tBTA_GATTC_CHARACTERISTIC *p_char = BTA_GATTC_GetCharacteristic(p_dev_cb->conn_id,
                                                                           p_data->handle);
-
+#ifdef BLUETOOTH_RTK
+    if(p_char == NULL){
+        return;
+    }
+#endif
     app_id= p_dev_cb->app_id;
 
     p_rpt = bta_hh_le_find_report_entry(p_dev_cb,

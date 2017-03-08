@@ -52,7 +52,7 @@ void bte_load_rtkbt_conf(const char *path)
     strlcpy(bt_hci_device_node, config_get_string(config, CONFIG_DEFAULT_SECTION, "BtDeviceNode","/dev/rtk_btusb"), sizeof(bt_hci_device_node));
 #else
     check_wifi_chip_type_string(type);
-    if (strstr(type, "AU")!=NULL || strstr(type, "BU")!=NULL) {
+    if (strstr(type, "AU")!=NULL || strstr(type, "BU")!=NULL || strstr(type, "RTL8822BE") != NULL) {
         strlcpy(bt_hci_device_node, "/dev/rtk_btusb", sizeof(bt_hci_device_node));
     } else if (!strncmp(type, "RTL", 3)) {
         strlcpy(bt_hci_device_node, "/dev/ttyS0", sizeof(bt_hci_device_node));

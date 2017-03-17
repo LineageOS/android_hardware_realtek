@@ -163,6 +163,9 @@ static future_t *start_up(void) {
 
   // Done telling the controller about what page 0 features we support
   // Request the remaining feature pages
+#ifdef BLUETOOTH_RTK
+  if(HCI_LMP_EXTENDED_SUPPORTED(features_classic[0].as_array)) {
+#endif  	
   while (page_number <= last_features_classic_page_index &&
          page_number < MAX_FEATURES_CLASSIC_PAGE_COUNT) {
     response = AWAIT_COMMAND(packet_factory->make_read_local_extended_features(page_number));
@@ -176,7 +179,9 @@ static future_t *start_up(void) {
 
     page_number++;
   }
-
+#ifdef BLUETOOTH_RTK  
+  }
+#endif  
 #if (SC_MODE_INCLUDED == TRUE)
   secure_connections_supported = HCI_SC_CTRLR_SUPPORTED(features_classic[2].as_array);
   if (secure_connections_supported) {
@@ -312,12 +317,16 @@ static uint8_t *get_local_supported_codecs(uint8_t *number_of_codecs) {
 
 static const bt_device_features_t *get_features_ble(void) {
   assert(readable);
+  if (!ble_supported)
+    return NULL;
   assert(ble_supported);
   return &features_ble;
 }
 
 static const uint8_t *get_ble_supported_states(void) {
   assert(readable);
+  if (!ble_supported)
+    return NULL;  
   assert(ble_supported);
   return ble_supported_states;
 }
@@ -369,18 +378,24 @@ static bool supports_ble(void) {
 
 static bool supports_ble_privacy(void) {
   assert(readable);
+  if (!ble_supported)
+    return false;   
   assert(ble_supported);
   return HCI_LE_ENHANCED_PRIVACY_SUPPORTED(features_ble.as_array);
 }
 
 static bool supports_ble_packet_extension(void) {
   assert(readable);
+  if (!ble_supported)
+    return false;   
   assert(ble_supported);
   return HCI_LE_DATA_LEN_EXT_SUPPORTED(features_ble.as_array);
 }
 
 static bool supports_ble_connection_parameters_request(void) {
   assert(readable);
+  if (!ble_supported)
+    return false;   
   assert(ble_supported);
   return HCI_LE_CONN_PARAM_REQ_SUPPORTED(features_ble.as_array);
 }
@@ -392,6 +407,8 @@ static uint16_t get_acl_data_size_classic(void) {
 
 static uint16_t get_acl_data_size_ble(void) {
   assert(readable);
+  if (!ble_supported)
+    return 0;   
   assert(ble_supported);
   return acl_data_size_ble;
 }
@@ -408,6 +425,8 @@ static uint16_t get_acl_packet_size_ble(void) {
 
 static uint16_t get_ble_suggested_default_data_length(void) {
   assert(readable);
+  if (!ble_supported)
+    return 0;   
   assert(ble_supported);
   return ble_suggested_default_data_length;
 }
@@ -419,18 +438,24 @@ static uint16_t get_acl_buffer_count_classic(void) {
 
 static uint8_t get_acl_buffer_count_ble(void) {
   assert(readable);
+  if (!ble_supported)
+    return 0;   
   assert(ble_supported);
   return acl_buffer_count_ble;
 }
 
 static uint8_t get_ble_white_list_size(void) {
   assert(readable);
+  if (!ble_supported)
+    return 0;   
   assert(ble_supported);
   return ble_white_list_size;
 }
 
 static uint8_t get_ble_resolving_list_max_size(void) {
   assert(readable);
+  if (!ble_supported)
+    return 0;   
   assert(ble_supported);
   return ble_resolving_list_max_size;
 }
@@ -441,6 +466,8 @@ static void set_ble_resolving_list_max_size(int resolving_list_max_size) {
   if (resolving_list_max_size != 0) {
     assert(readable);
   }
+  if (!ble_supported)
+    return;   
   assert(ble_supported);
   ble_resolving_list_max_size = resolving_list_max_size;
 }

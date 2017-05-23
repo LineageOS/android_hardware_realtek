@@ -231,7 +231,7 @@ typedef struct
 /******************************************************************************
 **  Externs
 ******************************************************************************/
-
+static char mac_addr[6]={0};
 void hw_config_cback(void *p_evt_buf);
 extern uint8_t vnd_local_bd_addr[BD_ADDR_LEN];
 
@@ -585,18 +585,18 @@ static int getmacaddr(unsigned char * addr)
     char data[256], *str;
     int addr_fd;
 
-    if ((addr_fd = open("/data/misc/bluetooth/bdaddr", O_RDONLY)) != -1)
-    {
-        memset(data, 0, sizeof(data));
-        read(addr_fd, data, 17);
-        for (i = 0,str = data; i < 6; i++) {
-           addr[5-i] = (unsigned char)strtoul(str, &str, 16);
-           str++;
-        }
-        close(addr_fd);
-        return 0;
-    }
+#if (USE_CONTROLLER_BDADDR == TRUE)
     return -1;
+#else
+// the mac in config is revert ,so we need revert 
+    addr[0]=mac_addr[5];
+    addr[1]=mac_addr[4];
+    addr[2]=mac_addr[3];
+    addr[3]=mac_addr[2];
+    addr[4]=mac_addr[1];
+    addr[5]=mac_addr[0];
+    return 0;
+#endif
 }
 
 static inline int getAltSettings(patch_info *patch_entry, unsigned short *offset, int max_group_cnt)
@@ -766,7 +766,14 @@ uint32_t rtk_parse_config_file(unsigned char** config_buf, size_t* filelen, uint
         i += temp;
         entry = (struct rtk_bt_vendor_config_entry*)((uint8_t*)entry + temp);
     }
-
+#if (USE_CONTROLLER_BDADDR == FALSE)
+        ALOGE("rtk_parse_config_file : %02X:%02X:%02X:%02X:%02X:%02X",
+        bt_addr[0], bt_addr[1],
+        bt_addr[2], bt_addr[3],
+        bt_addr[4], bt_addr[5]);
+//bt_addr normal 
+    memcpy(mac_addr,bt_addr,6);
+#endif
     return baudrate;
 }
 

@@ -1,6 +1,0 @@
-#ifndef INCLUDE_RTKBT_CONFIG_H
-#define INCLUDE_RTKBT_CONFIG_H
-
-//#define BLUETOOTH_RTK_DBG_MEM
-
-#endif

@@ -710,6 +710,22 @@ uint32_t rtk_parse_config_file(unsigned char** config_buf, size_t* filelen, uint
                 ALOGI("config baud rate to :0x%08x, hwflowcontrol:0x%x, 0x%x", baudrate, entry->entry_data[12], hw_cfg_cb.hw_flow_cntrl);
                 break;
             }
+#if (USE_CONTROLLER_BDADDR == FALSE)
+            case 0x44:
+            case 0x3c:
+            {
+                 config_has_bdaddr = 1;
+                 int j=0;
+                 for (j=0; j<entry->entry_len; j++)
+                     entry->entry_data[j] = bt_addr[entry->entry_len - 1- j];
+                 ALOGI("rtk_parse_config_file: DO NOT USE_CONTROLLER_BDADDR, config has bdaddr");
+                 ALOGI("rtk_parse_config_file : CONFIG_ADDR is: %02X:%02X:%02X:%02X:%02X:%02X",
+                    bt_addr[0], bt_addr[1],
+                    bt_addr[2], bt_addr[3],
+                    bt_addr[4], bt_addr[5]);
+                 break;
+            }
+#endif
             default:
                 ALOGI("config offset(0x%x),length(0x%x)", entry->offset, entry->entry_len);
                 break;

@@ -423,14 +423,7 @@ void userial_vendor_close(void)
     if (vnd_userial.fd == -1)
         return;
 
-    if((rtkbt_transtype & RTKBT_TRANS_UART) && (rtkbt_transtype & RTKBT_TRANS_H5)) {
-#if (BT_WAKE_VIA_USERIAL_IOCTL==TRUE)
-        /* de-assert bt_wake BEFORE closing port */
-        ioctl(vnd_userial.fd, USERIAL_IOCTL_BT_WAKE_DEASSERT, NULL);
-#endif
-        h5_int_interface->h5_int_cleanup();
 
-    }
 
     vnd_userial.thread_running = false;
 
@@ -443,6 +436,16 @@ void userial_vendor_close(void)
         rtk_parse_manager->rtk_parse_cleanup();
     }
     rtk_parse_manager = NULL;
+
+
+	if((rtkbt_transtype & RTKBT_TRANS_UART) && (rtkbt_transtype & RTKBT_TRANS_H5)) {
+#if (BT_WAKE_VIA_USERIAL_IOCTL==TRUE)
+        /* de-assert bt_wake BEFORE closing port */
+        ioctl(vnd_userial.fd, USERIAL_IOCTL_BT_WAKE_DEASSERT, NULL);
+#endif
+        h5_int_interface->h5_int_cleanup();
+
+    }
 }
 
 /*******************************************************************************

@@ -59,6 +59,8 @@
 #define H5_TRACE_DATA_ENABLE 0//if you want to see data tx and rx, set H5_TRACE_DATA_ENABLE 1
 #define H5_LOG_VERBOSE      0
 
+#define ENABLE_BLEADV_DISCONNECT 1
+
 unsigned int h5_log_enable = 1;
 
 #ifndef H5_LOG_BUF_SIZE
@@ -1558,6 +1560,49 @@ uint8_t internal_event_intercept_h5(void)
 * @param skb socket buffer
 *
 */
+#if  ENABLE_BLEADV_DISCONNECT
+uint16_t rk_h5_send_cmd(serial_data_type_t type, uint8_t *data, uint16_t length)
+{
+    sk_buff * skb = NULL;
+    uint16_t bytes_to_send, opcode;
+
+
+    skb = skb_alloc_and_init(type, data, length);
+    if(!skb) {
+        ALOGE("send cmd skb_alloc_and_init fail!");
+        return -1;
+    }
+
+    h5_enqueue(skb);
+
+    num_hci_cmd_pkts--;
+
+
+    STREAM_TO_UINT16(opcode, data);
+    ALOGE("HCI Command opcode(0x%04X)", opcode);
+
+    bytes_to_send = h5_wake_up();
+    return length;
+}
+
+static void adv_timer_handler(union sigval sigev_value)
+{
+	uint8_t sendData[4]={0x0a,0x20,0x01,0x01};
+	rk_h5_send_cmd(1, sendData, 4);
+}
+static void start_enableAdvtimer()
+{
+	if(loopacltimer == 0)
+		loopacltimer = OsAllocateTimer(adv_timer_handler);
+	OsStartTimer(loopacltimer, 100, 0);
+	
+}
+
+
+static uint16_t bleConHandle = 0x0000;
+static uint8_t  bleConnected = 0x00;
+static uint8_t bleAdvEnable = 0x00;
+#endif
 static uint8_t hci_recv_frame(sk_buff *skb, uint8_t pkt_type)
 {
     uint8_t intercepted = 0;
@@ -1589,7 +1634,29 @@ static uint8_t hci_recv_frame(sk_buff *skb, uint8_t pkt_type)
         uint8_t     event_code;
         uint16_t    opcode, len;
         p = (uint8_t *)skb_get_data(skb);
+#if  ENABLE_BLEADV_DISCONNECT
 
+        if(p[0]==0x3e //ble meta
+           && p[2]==0x01 //le connect complete
+           && p[3]==0x00)//success
+        {
+           bleConHandle = (uint16_t)p[4] + ((uint16_t)p[5] << 8);
+           ALOGE("bleConHandle 0x%x", bleConHandle);
+           bleConnected = 0x01;
+        }
+		
+        if(p[0]==0x05 //discon complete
+           && p[2]==0x00 //success
+          )
+        {
+           if( bleConnected && bleAdvEnable && bleConHandle == ((uint16_t)p[3] + ((uint16_t)p[4] << 8)) ){
+                ALOGE("blediscon restart ble adv");
+                bleConnected = 0x00;
+                bleConHandle = 0x0000;
+                start_enableAdvtimer();
+           }
+        }
+#endif
         event_code = *p++;
         len = *p++;
         H5LogMsg("hci_recv_frame event_code(0x%x), len = %d", event_code, len);
@@ -2305,6 +2372,7 @@ uint16_t hci_h5_send_cmd(serial_data_type_t type, uint8_t *data, uint16_t length
     sk_buff * skb = NULL;
     uint16_t bytes_to_send, opcode;
 
+
     skb = skb_alloc_and_init(type, data, length);
     if(!skb) {
         ALOGE("send cmd skb_alloc_and_init fail!");
@@ -2328,6 +2396,13 @@ uint16_t hci_h5_send_cmd(serial_data_type_t type, uint8_t *data, uint16_t length
     }
     if(opcode == 0x1802)
         loopbackmode =1;
+#if  ENABLE_BLEADV_DISCONNECT
+    if(opcode == 0x200a)//adv enalbe
+    {
+        ALOGE("setbleAdvEnable %x", data[1]);
+        bleAdvEnable = data[1];
+    }
+#endif
     bytes_to_send = h5_wake_up();
     return length;
 }

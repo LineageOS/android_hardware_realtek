@@ -27,5 +27,6 @@ LOCAL_MODULE := libbt-vendor-realtek
 LOCAL_MODULE_TAGS := optional
 LOCAL_PROPRIETARY_MODULE := true
 LOCAL_MODULE_CLASS := SHARED_LIBRARIES
+LOCAL_CPPFLAGS := -Werror -Wunused-parameter
 
 include $(BUILD_SHARED_LIBRARY)

@@ -21,7 +21,8 @@ LOCAL_C_INCLUDES += \
 
 LOCAL_SHARED_LIBRARIES := \
         libcutils \
-	liblog
+        liblog  \
+        libutils
 
 LOCAL_MODULE := libbt-vendor-realtek
 LOCAL_MODULE_TAGS := optional

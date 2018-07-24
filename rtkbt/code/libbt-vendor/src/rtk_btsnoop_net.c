@@ -18,7 +18,7 @@
 
 #define LOG_TAG "rtk_btsnoop_net"
 #include "rtk_btsnoop_net.h"
-
+#include <unistd.h>
 
 #define DATA_DIRECT_2_ELLISY 1
 

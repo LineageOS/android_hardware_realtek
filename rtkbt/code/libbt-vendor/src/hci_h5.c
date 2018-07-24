@@ -38,6 +38,7 @@
 #include <fcntl.h>
 #include <termios.h>
 #include <errno.h>
+#include <pthread.h>
 #include <signal.h>
 #include <time.h>
 #include <sys/prctl.h>
@@ -45,6 +46,7 @@
 #include <arpa/inet.h>
 #include <string.h>
 #include <linux/wait.h>
+#include <unistd.h>
 
 #include "hci_h5_int.h"
 #include "bt_skbuff.h"

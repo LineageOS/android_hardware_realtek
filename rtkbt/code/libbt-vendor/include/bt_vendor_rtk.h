@@ -78,10 +78,14 @@
 #define BTVNDDBG(param, ...) {}
 #endif
 
+#define DOWN_FW_CFG             _IOW('H', 201, int)
+#define SET_ISO_CFG             _IOW('H', 202, int)
+#define GET_USB_INFO            _IOW('H', 203, int)
+#define RESET_CONTROLLER        _IOW('H', 204, int)
 
 /* Device port name where Bluetooth controller attached */
 #ifndef BLUETOOTH_UART_DEVICE_PORT
-#define BLUETOOTH_UART_DEVICE_PORT      "/dev/ttyO1"    /* maguro */
+#define BLUETOOTH_UART_DEVICE_PORT      "/dev/ttyS1"    /* maguro */
 #endif
 
 /* Location of firmware patch files */
@@ -110,7 +114,7 @@
  *  firmware patchram (.hcd) file.
  */
 #ifndef USE_CONTROLLER_BDADDR
-#define USE_CONTROLLER_BDADDR   FALSE
+#define USE_CONTROLLER_BDADDR   TRUE //FALSE
 #endif
 
 /* sleep mode

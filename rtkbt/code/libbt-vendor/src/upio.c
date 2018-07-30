@@ -369,9 +369,9 @@ int upio_set_bluetooth_power(int on)
 ** Returns         None
 **
 *******************************************************************************/
-void upio_set(uint8_t pio, uint8_t action, uint8_t polarity)
+void upio_set(uint8_t pio, uint8_t action)//(uint8_t pio, uint8_t action, uint8_t polarity)
 {
-    int rc;
+    //int rc;
 #if (BT_WAKE_VIA_PROC == TRUE)
     int fd = -1;
     char buffer;

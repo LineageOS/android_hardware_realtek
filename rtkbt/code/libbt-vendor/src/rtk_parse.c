@@ -33,7 +33,7 @@
 *
 ******************************************************************************/
 #define LOG_TAG "rtk_parse"
-#define RTKBT_RELEASE_NAME	"Test"
+#define RTKBT_RELEASE_NAME "20180525_BT_ANDROID_8.1"
 
 #include <utils/Log.h>
 #include <stdlib.h>
@@ -191,6 +191,12 @@ enum {
     profile_max = 8
 };
 
+typedef struct RTK_COEX_INFO {
+    RT_LIST_ENTRY   list;
+    HC_BT_HDR  *    p_buf;
+    uint16_t        opcode;
+}tRTK_COEX_INFO;
+
 //profile info data
 typedef struct RTK_PROF_INFO {
     RT_LIST_ENTRY   list;
@@ -214,7 +220,9 @@ typedef struct RTK_CONN_PROF {
 typedef struct RTK_PROF {
     RT_LIST_HEAD    conn_hash;      //hash for connections
     RT_LIST_HEAD    profile_list;   //hash for profile info
+    RT_LIST_HEAD    coex_list;
     pthread_mutex_t profile_mutex;
+    pthread_mutex_t coex_mutex;
     pthread_mutex_t udpsocket_mutex;
     pthread_t thread_monitor;
     pthread_t thread_data;
@@ -263,9 +271,12 @@ typedef struct HCI_EVENT_BT_INFO_CONTROL {
     uint8_t     autoreport_enable;
 }tHCI_EVENT_BT_INFO_CONTROL;
 
+extern void Heartbeat_init();
+
 tRTK_PROF rtk_prof;
 volatile int poweroff_allowed = 0;
 uint8_t coex_log_enable = 0;
+static volatile bool coex_cmd_send = false;
 
 #define BIT(_I)                         (uint16_t)(1<<(_I))
 #define is_profile_connected(profile)   ((rtk_prof.profile_bitmap & BIT(profile)) >0)
@@ -759,17 +770,70 @@ tRTK_PROF_INFO* find_profile_by_handle_dcid_scid(tRTK_PROF* h5, uint16_t handle,
     return NULL;
 }
 
+void init_coex_hash(tRTK_PROF* h5)
+{
+    RT_LIST_HEAD* head = &h5->coex_list;
+    ListInitializeHeader(head);
+}
+
+void delete_coex_from_hash(tRTK_COEX_INFO* desc)
+{
+    if (desc)
+    {
+        ListDeleteNode(&desc->list);
+        free(desc);
+        desc = NULL;
+    }
+}
+
+void flush_coex_hash(tRTK_PROF* h5)
+{
+    RT_LIST_HEAD* head = &h5->coex_list;
+    RT_LIST_ENTRY* iter = NULL, *temp = NULL;
+    tRTK_COEX_INFO* desc = NULL;
+
+    pthread_mutex_lock(&rtk_prof.coex_mutex);
+    LIST_FOR_EACH_SAFELY(iter, temp, head)
+    {
+        desc = LIST_ENTRY(iter, tRTK_COEX_INFO, list);
+        delete_coex_from_hash(desc);
+    }
+    //ListInitializeHeader(head);
+    pthread_mutex_unlock(&rtk_prof.coex_mutex);
+}
+
 static void rtk_cmd_complete_cback(void *p_mem)
 {
     if(p_mem)
         bt_vendor_cbacks->dealloc(p_mem);
+    pthread_mutex_lock(&rtk_prof.coex_mutex);
+    RT_LIST_ENTRY* iter = ListGetTop(&(rtk_prof.coex_list));
+    tRTK_COEX_INFO* desc = NULL;
+    if (iter) {
+        desc = LIST_ENTRY(iter, tRTK_COEX_INFO, list);
+        if (desc)
+        {
+            ListDeleteNode(&desc->list);
+        }
+    }
+    else {
+        coex_cmd_send = false;
+    }
+    pthread_mutex_unlock(&rtk_prof.coex_mutex);
+
+    if(desc) {
+        ALOGE("%s, transmit_command Opcode:%x",__func__, desc->opcode);
+        bt_vendor_cbacks->xmit_cb(desc->opcode, desc->p_buf, rtk_cmd_complete_cback);
+    }
+
+    free(desc);
     return;
 }
 
 void rtk_vendor_cmd_to_fw(uint16_t opcode, uint8_t parameter_len, uint8_t* parameter)
 {
-    uint8_t temp = 0;
-    HC_BT_HDR  *p_buf=NULL;
+    //uint8_t temp = 0;
+    HC_BT_HDR  *p_buf = NULL;
 
     if(bt_vendor_cbacks)
         p_buf = (HC_BT_HDR *) bt_vendor_cbacks->alloc(BT_HC_HDR_SIZE + HCI_CMD_PREAMBLE_SIZE + parameter_len);
@@ -795,8 +859,29 @@ void rtk_vendor_cmd_to_fw(uint16_t opcode, uint8_t parameter_len, uint8_t* param
     }
     if(bt_vendor_cbacks)
     {
-            ALOGE("transmit_command Opcode:%x",opcode);
+        RtkLogMsg("begin transmit_command Opcode:%x",opcode);
+        pthread_mutex_lock(&rtk_prof.coex_mutex);
+        if(!coex_cmd_send) {
+            coex_cmd_send = true;
+            pthread_mutex_unlock(&rtk_prof.coex_mutex);
             bt_vendor_cbacks->xmit_cb(opcode, p_buf, rtk_cmd_complete_cback);
+        }
+        else {
+            tRTK_COEX_INFO* pcoex_info = NULL;
+            pcoex_info = malloc(sizeof(tRTK_COEX_INFO));
+            if (NULL == pcoex_info)
+            {
+                ALOGE("rtk_vendor_cmd_to_fw: allocate error");
+                return;
+            }
+
+            pcoex_info->p_buf = p_buf;
+            pcoex_info->opcode = opcode;
+
+            ListAddToTail(&(pcoex_info->list), &(rtk_prof.coex_list));
+            pthread_mutex_unlock(&rtk_prof.coex_mutex);
+        }
+
     }
     return ;
 }
@@ -1162,7 +1247,7 @@ uint8_t handle_l2cap_discon_req(uint16_t handle, uint16_t dcid, uint16_t scid, u
 void packets_count(uint16_t handle, uint16_t scid, uint16_t length, uint8_t direction, uint8_t *user_data)
 {
     tRTK_PROF_INFO* prof_info = NULL;
-    uint8_t profile_type;
+    //uint8_t profile_type;
 
     tRTK_CONN_PROF* hci_conn = find_connection_by_handle(&rtk_prof, handle);
     if(NULL == hci_conn)
@@ -1214,6 +1299,14 @@ void packets_count(uint16_t handle, uint16_t scid, uint16_t length, uint8_t dire
 
 static void timeout_handler(int signo, siginfo_t * info, void *context)
 {
+	if(info == NULL)
+	{
+		RtkLogMsg("info null");
+	}
+	if(context == NULL)
+	{
+		RtkLogMsg("context null");
+	}
     if (signo == TIMER_POLLING)
     {
         RtkLogMsg("polling timeout");
@@ -1346,9 +1439,9 @@ int udpsocket_send(char *tx_msg, int msg_size)
 
 int udpsocket_recv(uint8_t *recv_msg, uint8_t *msg_size)
 {
-    struct hostent *hostp;  /* client host info */
+    //struct hostent *hostp;  /* client host info */
     char buf[MAX_PAYLOAD];  /* message buf */
-    char *hostaddrp;        /* dotted decimal host addr string */
+    //char *hostaddrp;        /* dotted decimal host addr string */
     int n;                  /* message byte size */
     struct sockaddr_in recv_addr;
     socklen_t clientlen = sizeof(recv_addr);
@@ -1575,6 +1668,7 @@ static void rtk_handle_bt_info_control(uint8_t* p)
 static void rtk_handle_bt_coex_control(uint8_t* p)
 {
     uint8_t opcode = *p++;
+	uint8_t op_len = 0;
     RtkLogMsg("receive bt coex control event from wifi, opration is 0x%x", opcode);
     switch (opcode)
     {
@@ -1589,6 +1683,7 @@ static void rtk_handle_bt_coex_control(uint8_t* p)
             uint8_t opcode_len = *p++;
             uint8_t value = *p++;
             uint8_t temp_cmd[3];
+			op_len = opcode_len;
             temp_cmd[0] = HCI_VENDOR_SUB_CMD_BT_ENABLE_IGNORE_WLAN_ACT_CMD;
             temp_cmd[1] = 1;
             temp_cmd[2] = value;
@@ -1601,6 +1696,7 @@ static void rtk_handle_bt_coex_control(uint8_t* p)
             uint8_t opcode_len = *p++;
             uint8_t value = *p++;
             uint8_t temp_cmd[3];
+			op_len = opcode_len;
             temp_cmd[0] = HCI_VENDOR_SUB_CMD_SET_BT_LNA_CONSTRAINT;
             temp_cmd[1] = 1;
             temp_cmd[2] = value;
@@ -1613,6 +1709,7 @@ static void rtk_handle_bt_coex_control(uint8_t* p)
             uint8_t opcode_len = *p++;
             uint8_t power_decrease = *p++;
             uint8_t temp_cmd[3];
+			op_len = opcode_len;
             temp_cmd[0] = HCI_VENDOR_SUB_CMD_WIFI_FORCE_TX_POWER_CMD;
             temp_cmd[1] = 1;
             temp_cmd[2] = power_decrease;
@@ -1625,6 +1722,7 @@ static void rtk_handle_bt_coex_control(uint8_t* p)
             uint8_t opcode_len = *p++;
             uint8_t psd_mode = *p++;
             uint8_t temp_cmd[3];
+			op_len = opcode_len;
             temp_cmd[0] = HCI_VENDOR_SUB_CMD_SET_BT_PSD_MODE;
             temp_cmd[1] = 1;
             temp_cmd[2] = psd_mode;
@@ -1636,6 +1734,7 @@ static void rtk_handle_bt_coex_control(uint8_t* p)
         {
             uint8_t opcode_len = *p++;
             uint8_t temp_cmd[5];
+			op_len = opcode_len;
             temp_cmd[0] = HCI_VENDOR_SUB_CMD_WIFI_CHANNEL_AND_BANDWIDTH_CMD;
             temp_cmd[1] = 3;
             memcpy(temp_cmd+2, p, 3);//wifi_state, wifi_centralchannel, chnnels_btnotuse
@@ -1649,6 +1748,7 @@ static void rtk_handle_bt_coex_control(uint8_t* p)
             rtk_prof.piconet_id = *p++;
             rtk_prof.mode = *p++;
             uint8_t temp_cmd[4];
+			op_len = opcode_len;
             temp_cmd[0] = HCI_VENDOR_SUB_CMD_GET_AFH_MAP_L;
             temp_cmd[1] = 2;
             temp_cmd[2] = rtk_prof.piconet_id;
@@ -1661,6 +1761,7 @@ static void rtk_handle_bt_coex_control(uint8_t* p)
         {
             uint8_t opcode_len = *p++;
             uint8_t access_type = *p++;
+			op_len = opcode_len;
             if(access_type == 0) //read
             {
                 uint8_t temp_cmd[7];
@@ -1691,7 +1792,7 @@ void rtk_handle_event_from_wifi(uint8_t* msg)
 {
     uint8_t *p = msg;
     uint8_t event_code = *p++;
-
+	uint8_t total_length = 0;
     if(memcmp(msg, invite_rsp, sizeof(invite_rsp)) == 0)
     {
 #if 0
@@ -1734,7 +1835,7 @@ void rtk_handle_event_from_wifi(uint8_t* msg)
 
     if(event_code == 0xFE)
     {
-        uint8_t total_length = *p++;
+        total_length = *p++;
         uint8_t extension_event = *p++;
         switch(extension_event)
         {
@@ -1780,7 +1881,7 @@ static void udpsocket_receive_thread_exit_handler(int sig)
     pthread_exit(0);
 }
 
-static void udpsocket_receive_thread(void *arg)
+static void udpsocket_receive_thread()//(void *arg)
 {
     uint8_t msg_recv[MAX_PAYLOAD];
     uint8_t recv_length;
@@ -1791,7 +1892,7 @@ static void udpsocket_receive_thread(void *arg)
     actions.sa_flags = 0;
     actions.sa_handler = udpsocket_receive_thread_exit_handler;
 
-    int rc = sigaction(SIGUSR2,&actions,NULL);
+    sigaction(SIGUSR2,&actions,NULL);//int rc = sigaction(SIGUSR2,&actions,NULL);
 
     RtkLogMsg("udpsocket_receive_thread started");
     prctl(PR_SET_NAME, (unsigned long)"udpsocket_receive_thread", 0, 0, 0);
@@ -1947,6 +2048,7 @@ void rtk_parse_init(void)
     RtkLogMsg("rtk_profile_init, version: %s", RTK_VERSION);
 
     pthread_mutex_init(&rtk_prof.profile_mutex, NULL);
+    pthread_mutex_init(&rtk_prof.coex_mutex, NULL);
     pthread_mutex_init(&rtk_prof.udpsocket_mutex, NULL);
     alloc_a2dp_packet_count_timer();
     alloc_pan_packet_count_timer();
@@ -1955,6 +2057,7 @@ void rtk_parse_init(void)
 
     init_profile_hash(&rtk_prof);
     init_connection_hash(&rtk_prof);
+    init_coex_hash(&rtk_prof);
 
     create_udpsocket_socket();
 }
@@ -1971,6 +2074,8 @@ void rtk_parse_cleanup()
     flush_connection_hash(&rtk_prof);
     flush_profile_hash(&rtk_prof);
     pthread_mutex_destroy(&rtk_prof.profile_mutex);
+    flush_coex_hash(&rtk_prof);
+    pthread_mutex_destroy(&rtk_prof.coex_mutex);
 
     stop_udpsocket_receive_thread();
     pthread_mutex_destroy(&rtk_prof.udpsocket_mutex);
@@ -2161,6 +2266,10 @@ static void rtk_handle_cmd_complete_evt(uint8_t*p, uint8_t len)
             rtk_handle_vender_mailbox_cmp_evt(p, len);
             break;
 
+        case HCI_SET_EVENT_MASK:
+            Heartbeat_init();
+            break;
+
         case HCI_VENDOR_ADD_BITPOOL_FW:
             status = *p++;
             RtkLogMsg("received cmd complete event for HCI_VENDOR_ADD_BITPOOL_FW status:%d",status);
@@ -2304,7 +2413,7 @@ static void rtk_handle_disconnect_complete_evt(uint8_t* p)
     }
 }
 
-static void rtk_handle_le_connection_complete_evt(uint8_t* p)
+static void rtk_handle_le_connection_complete_evt(uint8_t* p, bool enhanced)
 {
     uint16_t handle, interval;
     uint8_t status;
@@ -2313,6 +2422,9 @@ static void rtk_handle_le_connection_complete_evt(uint8_t* p)
     status = *p++;
     STREAM_TO_UINT16 (handle, p);
     p += 8; //role, address type, address
+    if(enhanced) {
+        p += 12;
+    }
     STREAM_TO_UINT16 (interval, p);
 
     if(status == 0) {
@@ -2366,9 +2478,11 @@ static void rtk_handle_le_meta_evt(uint8_t* p)
     uint8_t sub_event = *p++;
     switch (sub_event) {
     case HCI_BLE_CONN_COMPLETE_EVT:
-        rtk_handle_le_connection_complete_evt(p);
+        rtk_handle_le_connection_complete_evt(p, false);
         break;
-
+    case HCI_BLE_ENHANCED_CONN_COMPLETE_EVT:
+        rtk_handle_le_connection_complete_evt(p, true);
+        break;
     case HCI_BLE_LL_CONN_PARAM_UPD_EVT:
         rtk_handle_le_connection_update_complete_evt(p);
         break;
@@ -2627,7 +2741,7 @@ void rtk_parse_l2cap_data(uint8_t *pp, uint8_t direction)
 void rtk_add_le_profile(BD_ADDR bdaddr, uint16_t handle, uint8_t profile_map)
 {
     RtkLogMsg("rtk_add_le_profile, handle is %x, profile_map is %x", handle, profile_map);
-
+	RtkLogMsg("bdaddr[0] = %d", bdaddr[0]);
     tRTK_CONN_PROF* hci_conn = find_connection_by_handle(&rtk_prof, handle);
     if(hci_conn)
     {
@@ -2646,7 +2760,7 @@ void rtk_add_le_profile(BD_ADDR bdaddr, uint16_t handle, uint8_t profile_map)
 void rtk_delete_le_profile(BD_ADDR bdaddr, uint16_t handle, uint8_t profile_map)
 {
     RtkLogMsg("rtk_delete_le_profile, handle is %x, profile_map is %x", handle, profile_map);
-
+	RtkLogMsg("bdaddr[0] = %d", bdaddr[0]);
     pthread_mutex_lock(&rtk_prof.profile_mutex);
     tRTK_CONN_PROF* hci_conn = find_connection_by_handle(&rtk_prof, handle);
     if(hci_conn == NULL)
@@ -2689,7 +2803,7 @@ void rtk_add_le_data_count(uint8_t data_type)
     }
 }
 
-static const rtk_parse_manager_t parse_interface = {
+static rtk_parse_manager_t parse_interface = {
   rtk_parse_internal_event_intercept,
   rtk_parse_l2cap_data,
   rtk_parse_init,
@@ -2700,7 +2814,7 @@ static const rtk_parse_manager_t parse_interface = {
   rtk_add_le_data_count,
 };
 
-const rtk_parse_manager_t *rtk_parse_manager_get_interface() {
+rtk_parse_manager_t *rtk_parse_manager_get_interface() {
   return &parse_interface;
 }
 

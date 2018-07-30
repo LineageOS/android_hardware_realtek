@@ -43,6 +43,9 @@
 #define HCI_VSC_SET_WAKE_UP_DEVICE      0xFC7B
 #define HCI_VSC_BT_OFF                  0xFC28
 #define HCI_READ_LMP_VERSION            0x1001
+#define HCI_VENDOR_RESET                0x0C03
+#define HCI_VENDOR_FORCE_RESET_AND_PATCHABLE 0xFC66
+
 
 #define STREAM_TO_UINT16(u16, p) {u16 = ((uint16_t)(*(p)) + (((uint16_t)(*((p) + 1))) << 8)); (p) += 2;}
 #define UINT16_TO_STREAM(p, u16) {*(p)++ = (uint8_t)(u16); *(p)++ = (uint8_t)((u16) >> 8);}

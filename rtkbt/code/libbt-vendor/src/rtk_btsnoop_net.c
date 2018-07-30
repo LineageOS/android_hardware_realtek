@@ -44,7 +44,7 @@ static pthread_mutex_t btsnoop_log_lock;
 
 
 static void rtk_safe_close_(int *fd);
-static void *rtk_listen_fn_(void *context);
+static void *rtk_listen_fn_();
 
 static const char *RTK_LISTEN_THREAD_NAME_ = "rtk_btsnoop_net";
 static const int RTK_LOCALHOST_ = 0xC0A80AE2;       // 192.168.10.226
@@ -79,14 +79,36 @@ static uint64_t rtk_btsnoop_timestamp(void) {
 void rtk_btsnoop_open()
 {
     pthread_mutex_init(&btsnoop_log_lock, NULL);
+    char last_log_path[PATH_MAX];
+    uint64_t timestamp;
+    uint32_t usec;
+    uint8_t sec,hour, minus,day;
+
     if (hci_btsnoop_fd != -1) {
       ALOGE("%s btsnoop log file is already open.", __func__);
       return;
     }
 
     if(rtk_btsnoop_save_log) {
-        char last_log_path[PATH_MAX];
-        snprintf(last_log_path, PATH_MAX, "%s.%llu", rtk_btsnoop_path, rtk_btsnoop_timestamp());
+        timestamp = rtk_btsnoop_timestamp() - BTSNOOP_EPOCH_DELTA;
+        usec = (uint32_t)(timestamp % 1000000LL);
+        timestamp /= 1000000LL;
+        sec = (uint8_t)(timestamp % 60LL);
+        timestamp /= 60LL;
+        minus = (uint8_t)(timestamp % 60LL);
+        timestamp /= 60LL;
+        hour = (uint8_t)(timestamp % 24LL);
+        timestamp /= 24LL;
+        day = (uint8_t)(timestamp % 30LL);
+        timestamp /= 30LL;
+        //snprintf(last_log_path, PATH_MAX, "%s.%llu", rtk_btsnoop_path, rtk_btsnoop_timestamp());
+        snprintf(last_log_path, PATH_MAX, "%s.%uY-%dD-%dH-%dM-%dS-%dUS", rtk_btsnoop_path,
+          (uint32_t)timestamp, day, hour, minus, sec, usec);
+        if (!rename(rtk_btsnoop_path, last_log_path) && errno != ENOENT)
+            ALOGE("%s unable to rename '%s' to '%s': %s", __func__, rtk_btsnoop_path, last_log_path, strerror(errno));
+    }
+    else {
+        snprintf(last_log_path, PATH_MAX, "%s.last", rtk_btsnoop_path);
         if (!rename(rtk_btsnoop_path, last_log_path) && errno != ENOENT)
             ALOGE("%s unable to rename '%s' to '%s': %s", __func__, rtk_btsnoop_path, last_log_path, strerror(errno));
     }
@@ -327,7 +349,7 @@ void rtk_btsnoop_net_write(serial_data_type_t type, uint8_t *data, bool is_recei
     pthread_mutex_unlock(&rtk_client_socket_lock_);
 }
 
-static void *rtk_listen_fn_(void *context) {
+static void *rtk_listen_fn_() {
     prctl(PR_SET_NAME, (unsigned long)RTK_LISTEN_THREAD_NAME_, 0, 0, 0);
 
     rtk_listen_socket_ = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);

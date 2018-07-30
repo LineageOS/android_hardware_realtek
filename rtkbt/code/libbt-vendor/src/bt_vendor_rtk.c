@@ -26,7 +26,7 @@
 
 #undef NDEBUG
 #define LOG_TAG "libbt_vendor"
-#define RTKBT_RELEASE_NAME "20171107_BT_ANDROID_8.x"
+#define RTKBT_RELEASE_NAME "20180525_BT_ANDROID_8.1"
 #include <utils/Log.h>
 #include "bt_vendor_rtk.h"
 #include "upio.h"
@@ -44,6 +44,8 @@ extern bool rtk_btsnoop_save_log;
 extern char rtk_btsnoop_path[];
 extern uint8_t coex_log_enable;
 extern void hw_config_start(char transtype);
+extern void hw_usb_config_start(char transtype,uint32_t val);
+extern void RTK_btservice_init();
 
 #if (HW_END_WITH_HCI_RESET == TRUE)
 void hw_epilog_process(void);
@@ -63,7 +65,6 @@ bool rtkbt_auto_restart = false;
 #define RTKBT_CONF_FILE         "/vendor/etc/bluetooth/rtkbt.conf"
 #define USB_DEVICE_DIR          "/sys/bus/usb/devices"
 #define DEBUG_SCAN_USB          FALSE
-#define DOWN_FW_CFG             _IOW('H', 201, int)
 
 /******************************************************************************
 **  Static Variables
@@ -197,7 +198,7 @@ static void load_rtkbt_stack_conf()
     }
     int line_num = 0;
     char line[1024];
-    char value[1024];
+    //char value[1024];
     while (fgets(line, sizeof(line), fp)) {
         char *line_ptr = rtk_trim(line);
         ++line_num;
@@ -263,7 +264,7 @@ static void load_rtkbt_conf()
     FILE *fp = fopen(RTKBT_CONF_FILE, "rt");
     if (!fp) {
       ALOGE("%s unable to open file '%s': %s", __func__, RTKBT_CONF_FILE, strerror(errno));
-      strcpy(rtkbt_device_node,"/dev/rtk_btusb");
+      strcpy(rtkbt_device_node,"/dev/rtkbt_dev");
       return;
     }
 
@@ -280,7 +281,7 @@ static void load_rtkbt_conf()
         split = strchr(line_ptr, '=');
         if (!split) {
         ALOGE("%s no key/value separator found on line %d.", __func__, line_num);
-        strcpy(rtkbt_device_node,"/dev/rtk_btusb");
+        strcpy(rtkbt_device_node,"/dev/rtkbt_dev");
         return;
       }
 
@@ -296,7 +297,7 @@ static void load_rtkbt_conf()
     if(rtkbt_device_node[0]=='?'){
         /*1.Scan_Usb_Device*/
         if(Scan_Usb_Devices_For_RTK(USB_DEVICE_DIR) == 0x01) {
-            strcpy(rtkbt_device_node,"/dev/rtk_btusb");
+            strcpy(rtkbt_device_node,"/dev/rtkbt_dev");
         }
         else{
             int i = 0;
@@ -307,7 +308,7 @@ static void load_rtkbt_conf()
         }
     }
 
-    if(split = strchr(rtkbt_device_node, ':')) {
+    if((split = strchr(rtkbt_device_node, ':')) != NULL) {
         *split = '\0';
         if(!strcmp(rtk_trim(split + 1), "H5")) {
             rtkbt_transtype |= RTKBT_TRANS_H5;
@@ -316,12 +317,12 @@ static void load_rtkbt_conf()
             rtkbt_transtype |= RTKBT_TRANS_H4;
         }
     }
-    else if(strcmp(rtkbt_device_node, "/dev/rtk_btusb")) {
+    else if(strcmp(rtkbt_device_node, "/dev/rtkbt_dev")) {
         //default use h5
         rtkbt_transtype |= RTKBT_TRANS_H5;
     }
 
-    if(strcmp(rtkbt_device_node, "/dev/rtk_btusb")) {
+    if(strcmp(rtkbt_device_node, "/dev/rtkbt_dev")) {
         rtkbt_transtype |= RTKBT_TRANS_UART;
     }
     else {
@@ -410,20 +411,10 @@ static int op(bt_vendor_opcode_t opcode, void *param)
                     hw_config_start(rtkbt_transtype);
                 }
                 else {
-                    BTVNDDBG("usb op for %d", opcode);
-                    ALOGE("Bt_vendor_rtk Op for BT_VND_OP_FW_CFG");
-                    retval = userial_vendor_usb_ioctl(DOWN_FW_CFG);
-                    if(retval>0){
-                        ALOGE("Bt_vendor_rtk Download Fw Success");
-                        bt_vendor_cbacks->fwcfg_cb(BT_VND_OP_RESULT_SUCCESS);
-                    }else{
-                        ALOGE("Bt_vendor_rtk Download Fw failed: %s(%d)", strerror(errno), errno);
-                        if(rtkbt_auto_restart) {
-                            bt_vendor_cbacks->fwcfg_cb(BT_VND_OP_RESULT_FAIL);
-                            kill(getpid(), SIGKILL);
-                        }
-                    }
+                  retval = userial_vendor_usb_ioctl(GET_USB_INFO, NULL);
+                  hw_usb_config_start(RTKBT_TRANS_H4,retval);
                 }
+                RTK_btservice_init();
             }
             break;
 
@@ -473,17 +464,16 @@ static int op(bt_vendor_opcode_t opcode, void *param)
                     BTVNDDBG("USB op for %d", opcode);
                     int fd, idx = 0;
                     int (*fd_array)[] = (int (*)[]) param;
-                    if(userial_vendor_usb_open() != -1){
-                        retval = 1;
+                    for(idx = 0; idx < 10; idx++) {
+                        if(userial_vendor_usb_open() != -1){
+                            retval = 1;
+                            break;
+                        }
                     }
-                    do {
-                        idx++;
-                        usleep(500000);
-                    }while(userial_vendor_usb_open() == -1 && idx < 10);
                     fd = userial_socket_open();
                     if (fd != -1)
                     {
-                        for (idx=0; idx < CH_MAX; idx++)
+                        for (idx = 0; idx < CH_MAX; idx++)
                             (*fd_array)[idx] = fd;
                     }
                     else

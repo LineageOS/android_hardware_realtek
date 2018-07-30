@@ -87,7 +87,7 @@ typedef struct rtk_parse_manager_t {
 
 }rtk_parse_manager_t;
 
-const rtk_parse_manager_t *rtk_parse_manager_get_interface();
+rtk_parse_manager_t *rtk_parse_manager_get_interface();
 
 #ifdef __LITTLE_ENDIAN
 struct sbc_frame_hdr {

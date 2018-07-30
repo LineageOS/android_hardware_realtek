@@ -77,7 +77,7 @@ typedef struct _RTB_QUEUE_HEAD{
     uint32_t  QueueLen;
     pthread_mutex_t Lock;
     uint8_t   Id[RTB_QUEUE_ID_LENGTH];
-}RTB_QUEUE_HEAD, *PRTB_QUEUE_HEAD;
+}*PRTB_QUEUE_HEAD;
 
 //****************************************************************************
 // FUNCTION
@@ -87,7 +87,7 @@ typedef struct _RTB_QUEUE_HEAD{
     \return :   FALSE   Queue is not empty
         TRU Queue is empty
 */
-unsigned char
+bool
 RtbQueueIsEmpty(
    IN RTB_QUEUE_HEAD* RtkQueueHead
 )

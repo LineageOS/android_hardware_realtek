@@ -41,6 +41,7 @@
 #ifndef BT_SKBUFF_H
 #define BT_SKBUFF_H
 #include "bt_list.h"
+#include <stdbool.h>
 
 #ifndef EXTERN
 #define EXTERN
@@ -335,11 +336,10 @@ RtbQueueNextNode(
 /**
     check whether queue is empty
 */
-EXTERN unsigned char
+EXTERN bool
 RtbQueueIsEmpty(
    IN RTB_QUEUE_HEAD* RtkQueueHead
 );
-
 
 //annie_tmp
 EXTERN unsigned char

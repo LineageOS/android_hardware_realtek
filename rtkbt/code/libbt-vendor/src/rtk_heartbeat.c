@@ -1,5 +1,5 @@
 #define LOG_TAG "rtk_heartbeat"
-#define RTKBT_RELEASE_NAME	"20180525_BT_ANDROID_8.1"
+#define RTKBT_RELEASE_NAME	"Test"
 
 #include <utils/Log.h>
 #include <sys/types.h>

@@ -76,14 +76,23 @@ unsigned int h5_log_enable = 1;
 
 
 #define DATA_RETRANS_COUNT  40  //40*100 = 4000ms(4s)
-#define SYNC_RETRANS_COUNT  14  //14*250 = 3500ms(3.5s)
-#define CONF_RETRANS_COUNT  14
+#define BT_INIT_DATA_RETRANS_COUNT  200  //200*20 = 4000ms(4s)
+//#define SYNC_RETRANS_COUNT  14  //14*250 = 3500ms(3.5s)
+#define SYNC_RETRANS_COUNT  350  //350*10 = 3500ms(3.5s)
+//#define CONF_RETRANS_COUNT  14
+#define CONF_RETRANS_COUNT  350
+
 
 
 #define DATA_RETRANS_TIMEOUT_VALUE  100 //ms
-#define SYNC_RETRANS_TIMEOUT_VALUE   250
-#define CONF_RETRANS_TIMEOUT_VALUE   250
-#define WAIT_CT_BAUDRATE_READY_TIMEOUT_VALUE   250
+#define BT_INIT_DATA_RETRANS_TIMEOUT_VALUE  20 //ms
+//#define SYNC_RETRANS_TIMEOUT_VALUE   250
+#define SYNC_RETRANS_TIMEOUT_VALUE   10
+
+//#define CONF_RETRANS_TIMEOUT_VALUE   250
+#define CONF_RETRANS_TIMEOUT_VALUE   20
+//#define WAIT_CT_BAUDRATE_READY_TIMEOUT_VALUE   250
+#define WAIT_CT_BAUDRATE_READY_TIMEOUT_VALUE   5
 #define H5_HW_INIT_READY_TIMEOUT_VALUE   4000//4
 
 
@@ -188,7 +197,7 @@ typedef enum H5_LINK_STATE
 static volatile uint8_t h5_retransfer_running = 0;
 static volatile uint16_t h5_ready_events = 0;
 static volatile uint8_t h5_data_ready_running = 0;
-
+volatile int h5_init_datatrans_flag;
 
 /* Control block for HCISU_H5 */
 typedef struct HCI_H5_CB
@@ -1931,6 +1940,7 @@ static void data_retransfer_thread()//(void *arg)
 {
     uint16_t events;
     //uint32_t i = 0;
+    uint16_t data_retrans_counts = DATA_RETRANS_COUNT;
 
     H5LogMsg("data_retransfer_thread started");
 
@@ -1951,7 +1961,12 @@ static void data_retransfer_thread()//(void *arg)
         {
             sk_buff *skb;
             ALOGE("retransmitting (%u) pkts, retransfer count(%d)", skb_queue_get_length(rtk_h5.unack), rtk_h5.data_retrans_count);
-            if(rtk_h5.data_retrans_count < DATA_RETRANS_COUNT)
+            if(h5_init_datatrans_flag == 0)
+                data_retrans_counts = DATA_RETRANS_COUNT;
+            else
+                data_retrans_counts = BT_INIT_DATA_RETRANS_COUNT;
+
+            if(rtk_h5.data_retrans_count < data_retrans_counts)
             {
                 while ((skb = skb_dequeue_tail(rtk_h5.unack)) != NULL)
                 {
@@ -2127,6 +2142,8 @@ void hci_h5_int_init(hci_h5_callbacks_t* h5_callbacks)
 
     rtk_h5.rx_state = H5_W4_PKT_DELIMITER;
     rtk_h5.rx_esc_state = H5_ESCSTATE_NOESC;
+
+    h5_init_datatrans_flag = 1;
 
 }
 
@@ -2554,7 +2571,10 @@ int h5_free_data_retrans_timer()
 
 int h5_start_data_retrans_timer()
 {
-    return OsStartTimer(rtk_h5.timer_data_retrans, DATA_RETRANS_TIMEOUT_VALUE, 0);
+    if(h5_init_datatrans_flag == 0)
+        return OsStartTimer(rtk_h5.timer_data_retrans, DATA_RETRANS_TIMEOUT_VALUE, 0);
+    else
+        return OsStartTimer(rtk_h5.timer_data_retrans, BT_INIT_DATA_RETRANS_TIMEOUT_VALUE, 0);
 }
 
 int h5_stop_data_retrans_timer()

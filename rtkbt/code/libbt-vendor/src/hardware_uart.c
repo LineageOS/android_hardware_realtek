@@ -1,5 +1,5 @@
 #define LOG_TAG "bt_hwcfg_uart"
-#define RTKBT_RELEASE_NAME	"20180525_BT_ANDROID_8.1"
+#define RTKBT_RELEASE_NAME	"Test"
 
 #include <utils/Log.h>
 #include <sys/types.h>
@@ -38,7 +38,7 @@ extern int getmacaddr(unsigned char * addr);
 extern uint8_t rtk_get_fw_project_id(uint8_t *p_buf);
 extern struct rtk_epatch_entry *rtk_get_patch_entry(bt_hw_cfg_cb_t *cfg_cb);
 extern int rtk_get_bt_firmware(uint8_t** fw_buf, char* fw_short_name);
-
+extern volatile int h5_init_datatrans_flag;
 
 
 
@@ -179,6 +179,7 @@ baudrate_ex baudrates[] =
     {0x00006004, 921600},
     {0x05F75004, 921600},//RTL8723BS
     {0x00004003, 1500000},
+    {0x052A8002, 1500000},//RTL8723BS
     {0x04928002, 1500000},//RTL8723BS
     {0x00005002, 2000000},//same as RTL8723AS
     {0x00008001, 3000000},
@@ -1072,6 +1073,7 @@ CFG_START:
 
             case HW_CFG_SET_UART_BAUD_HOST:
                 /* update baud rate of host's UART port */
+                BTVNDDBG("bt vendor lib: set HOST UART baud start");
                 rtk_speed_to_uart_speed(hw_cfg_cb.baudrate, &host_baudrate);
                 BTVNDDBG("bt vendor lib: set HOST UART baud %i", host_baudrate);
                 userial_vendor_set_baud(line_speed_to_userial_baud(host_baudrate));
@@ -1090,8 +1092,9 @@ SET_HW_FLCNTRL:
                 {
                     userial_vendor_set_hw_fctrl(0);
                 }
-                ms_delay(100);
+                ms_delay(50);
                 hw_cfg_cb.state = HW_CFG_DL_FW_PATCH;
+                BTVNDDBG("start donwload fw");
 
 DOWNLOAD_FW:
             case HW_CFG_DL_FW_PATCH:
@@ -1115,6 +1118,7 @@ DOWNLOAD_FW:
 
                         hw_cfg_cb.state = 0;
                         is_proceeding = TRUE;
+                        h5_init_datatrans_flag = 0;
                         break;
                     }
                 }

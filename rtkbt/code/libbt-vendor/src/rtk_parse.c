@@ -33,7 +33,7 @@
 *
 ******************************************************************************/
 #define LOG_TAG "rtk_parse"
-#define RTKBT_RELEASE_NAME "20180525_BT_ANDROID_8.1"
+#define RTKBT_RELEASE_NAME "20180702_BT_ANDROID_9.0"
 
 #include <utils/Log.h>
 #include <stdlib.h>

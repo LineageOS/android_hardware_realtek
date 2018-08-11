@@ -486,6 +486,7 @@ void userial_vendor_close(void)
     userial_uart_close();
     userial_coex_close();
     Heartbeat_cleanup();
+    
 
     vnd_userial.fd = -1;
     vnd_userial.btdriver_state = false;
@@ -1227,12 +1228,12 @@ static void userial_handle_cmd(unsigned char * recv_buffer, int total_length)
 	{
 		ALOGE("total_length = %d", total_length);
 	}
-    ALOGE("opcode = 0x%x",opcode);
+  //ALOGE("opcode = 0x%x",opcode);
     switch (opcode) {
         case HCI_BLE_WRITE_SCAN_PARAMS :
             scan_int = *(uint16_t*)&recv_buffer[4];
             scan_win = *(uint16_t*)&recv_buffer[6];
-            ALOGE("scan_int = %d, scan_win = %d",scan_int,scan_win);
+            //ALOGE("scan_int = %d, scan_win = %d",scan_int,scan_win);
             if(scan_win > 0x10){
                 *(uint16_t*)&recv_buffer[4] = (scan_int * 0x10) / scan_win;
                 *(uint16_t*)&recv_buffer[6] = 0x10;

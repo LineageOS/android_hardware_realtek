@@ -26,7 +26,7 @@
 
 #undef NDEBUG
 #define LOG_TAG "libbt_vendor"
-#define RTKBT_RELEASE_NAME "20180525_BT_ANDROID_8.1"
+#define RTKBT_RELEASE_NAME "20180702_BT_ANDROID_9.0"
 #include <utils/Log.h>
 #include "bt_vendor_rtk.h"
 #include "upio.h"
@@ -388,18 +388,18 @@ static int op(bt_vendor_opcode_t opcode, void *param)
                     int *state = (int *) param;
                     if (*state == BT_VND_PWR_OFF)
                     {
-                        //upio_set_bluetooth_power(UPIO_BT_POWER_OFF);
-                        //usleep(200000);
-                        //BTVNDDBG("set power off and delay 200ms");
+                        upio_set_bluetooth_power(UPIO_BT_POWER_OFF);
+                        usleep(200000);
+                        BTVNDDBG("set power off and delay 200ms");
                     }
                     else if (*state == BT_VND_PWR_ON)
                     {
                         upio_set_bluetooth_power(UPIO_BT_POWER_OFF);
-                        usleep(500000);
-                        BTVNDDBG("set power off and delay 500ms");
+                        usleep(200000);
+                        BTVNDDBG("set power off and delay 200ms");
                         upio_set_bluetooth_power(UPIO_BT_POWER_ON);
-                        usleep(500000);
-                        BTVNDDBG("set power on and delay 500ms");
+                        //usleep(200000);
+                        BTVNDDBG("set power on and delay 00ms");
                     }
                 }
             }

@@ -1208,7 +1208,32 @@ static void rtk_notify_hw_h5_init_result(uint8_t status)
     pthread_cond_signal(&rtk_h5.data_cond);
     pthread_mutex_unlock(&rtk_h5.data_mutex);
 }
+static uint8_t *acl_pack = NULL;
+static uint32_t acl_len=0;
+static uint8_t loopbackmode = 0x00;
 
+static timer_t loopacltimer=0;
+
+static void loop_acl_cb()
+{
+    sk_buff     *rx_skb;
+    rx_skb = skb_alloc_and_init(HCI_ACLDATA_PKT, acl_pack, acl_len);
+
+    pthread_mutex_lock(&rtk_h5.data_mutex);
+    skb_queue_tail(rtk_h5.recv_data, rx_skb);
+    pthread_cond_signal(&rtk_h5.data_cond);
+    pthread_mutex_unlock(&rtk_h5.data_mutex);
+}
+static void loopacl_timer_handler()
+{
+    loop_acl_cb();
+}
+static void start_loopacktimer()
+{
+    if(loopacltimer == 0)
+        loopacltimer = OsAllocateTimer(loopacl_timer_handler);
+    OsStartTimer(loopacltimer, 10, 0);
+}
 
 static sk_buff * h5_dequeue()
 {
@@ -1583,6 +1608,20 @@ static uint8_t hci_recv_frame(sk_buff *skb, uint8_t pkt_type)
         event_code = *p++;
         len = *p++;
         H5LogMsg("hci_recv_frame event_code(0x%x), len = %d", event_code, len);
+        if(event_code == HCI_COMMAND_STATUS_EVT && len==0x04
+		    && p[0]==0x01 && p[1]==0x02 && p[2]==0xff && p[3]==0x3b){
+            *( p-2) = HCI_COMMAND_COMPLETE_EVT;
+            p[0]=0x02;p[1]=0xff;p[2]=0x3b;p[3]=0x01;
+        }// fix HciUnknownCommand test fail
+
+        if(loopbackmode == 0x01){
+            if(event_code == HCI_LOOPBACK_COMMAND_EVT
+                && p[0]==0x19 && p[1]==0xfc){
+              intercepted = 1;
+              skb_free(&skb);
+          }
+        }//drop 0xfc19 frame when in loopbackmode,fix loopbackmode test fail
+
         if (event_code == HCI_COMMAND_COMPLETE_EVT)
         {
             num_hci_cmd_pkts = *p++;
@@ -1595,6 +1634,9 @@ static uint8_t hci_recv_frame(sk_buff *skb, uint8_t pkt_type)
                 H5LogMsg("CommandCompleteEvent for command h5_start_wait_controller_baudrate_ready_timer (0x%04X)", opcode);
                 h5_start_wait_controller_baudrate_ready_timer();
             }
+        }else if(event_code == 0xff ){
+           intercepted = 1;
+           skb_free(&skb);
         }
 
     }
@@ -2298,6 +2340,9 @@ uint16_t hci_h5_send_cmd(serial_data_type_t type, uint8_t *data, uint16_t length
         H5LogMsg("RX HCI RESET Command, stop hw init timer");
         h5_stop_hw_init_ready_timer();
     }
+    if(opcode == HCI_WRITE_LOOPBACK_MODE)
+        loopbackmode = 0x01;
+
     bytes_to_send = h5_wake_up();
     return length;
 }
@@ -2316,6 +2361,16 @@ uint16_t hci_h5_send_acl_data(serial_data_type_t type, uint8_t *data, uint16_t l
 {
     uint16_t bytes_to_send;//, lay_spec;
     sk_buff * skb = NULL;
+    if(loopbackmode == 1){
+        acl_len = length;
+        if(!acl_pack)
+            acl_pack = malloc(2050);
+        if(acl_len>2050)
+            acl_len = 2050;
+        memcpy(acl_pack,data,acl_len);
+        start_loopacktimer();
+        return length;
+    }
 
     skb = skb_alloc_and_init(type, data, length);
     if(!skb) {

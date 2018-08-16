@@ -1945,6 +1945,12 @@ static bool h5_recv(tHCI_H5_CB *h5, uint8_t *data, int count)
 /******************************************************************************
 **  Static functions
 ******************************************************************************/
+static void h5_data_ready_cb_signal_exit()
+{
+    pthread_mutex_lock(&rtk_h5.data_mutex);
+    pthread_cond_signal(&rtk_h5.data_cond);
+    pthread_mutex_unlock(&rtk_h5.data_mutex);
+}
 static void data_ready_cb_thread()
 {
     sk_buff *skb;
@@ -1958,11 +1964,14 @@ static void data_ready_cb_thread()
     while (h5_data_ready_running)
     {
         pthread_mutex_lock(&rtk_h5.data_mutex);
-        while ((skb_queue_get_length(rtk_h5.recv_data) == 0))
+        while ((skb_queue_get_length(rtk_h5.recv_data) == 0) && h5_retransfer_running)
         {
             pthread_cond_wait(&rtk_h5.data_cond, &rtk_h5.data_mutex);
         }
         pthread_mutex_unlock(&rtk_h5.data_mutex);
+
+        if(!h5_retransfer_running)
+            break;
 
         if((skb = skb_dequeue_head(rtk_h5.recv_data)) != NULL) {
             rtk_h5.data_skb = skb;
@@ -1973,7 +1982,7 @@ static void data_ready_cb_thread()
         h5_int_hal_callbacks->h5_data_ready_cb(pkt_type, total_length);
     }
 
-    H5LogMsg("data_ready_cb_thread exiting");
+    ALOGE("data_ready_cb_thread exiting");
     pthread_exit(NULL);
 
 }
@@ -2045,7 +2054,7 @@ static void data_retransfer_thread()//(void *arg)
 
 }
 
-    H5LogMsg("data_retransfer_thread exiting");
+    ALOGE("data_retransfer_thread exiting");
     pthread_exit(NULL);
 
 }
@@ -2200,11 +2209,12 @@ void hci_h5_int_init(hci_h5_callbacks_t* h5_callbacks)
 *******************************************************************************/
 void hci_h5_cleanup(void)
 {
-    H5LogMsg("hci_h5_cleanup");
+    ALOGE("hci_h5_cleanup");
     //uint8_t try_cnt=10;
     int result;
 
     rtk_h5.cleanuping = 1;
+    ms_delay(200);
 
 
     //btsnoop_cleanup();
@@ -2219,12 +2229,20 @@ void hci_h5_cleanup(void)
     if (h5_retransfer_running)
     {
         h5_retransfer_running = 0;
+        h5_data_ready_cb_signal_exit();
+        if ((result = pthread_join(rtk_h5.thread_data_ready_cb, NULL)) < 0)
+            ALOGE("H5 thread_data_ready_cb pthread_join() FAILED result:%d", result);
+		
         h5_retransfer_signal_event(H5_EVENT_EXIT);
         if ((result = pthread_join(rtk_h5.thread_data_retrans, NULL)) < 0)
         ALOGE("H5 pthread_join() FAILED result:%d", result);
     }
 
     ms_delay(200);
+
+
+    pthread_mutex_destroy(&rtk_h5.data_mutex);
+    pthread_cond_destroy(&rtk_h5.data_cond);
 
     pthread_mutex_destroy(&rtk_h5.mutex);
     pthread_cond_destroy(&rtk_h5.cond);

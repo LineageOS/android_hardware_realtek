@@ -138,7 +138,7 @@ static void rtkbt_heartbeat_cmpl_cback (void *p_params)
         ALOGE("rtkbt_heartbeat_cmpl_cback: Current SeqNum = %d,should SeqNum=%d, status = %d", seqnum, nextSeqNum, status);
         ALOGE("heartbeat event missing:  restart bluedroid stack\n");
         usleep(1000);
-        kill(getpid(), SIGKILL);
+        //kill(getpid(), SIGKILL);
     }
    
 }
@@ -159,7 +159,7 @@ static void heartbeat_timed_out()//(union sigval arg)
         ALOGE("heartbeat_timed_out: heartbeatCount = %d, expected nextSeqNum = %d",heartbeatCount, nextSeqNum);
         ALOGE("heartbeat_timed_out,controller may be suspend! Now restart bluedroid stack\n");
         usleep(1000);
-        kill(getpid(), SIGKILL);
+        //kill(getpid(), SIGKILL);
         return;
     }
     if(heartbeatFlag)

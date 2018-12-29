@@ -193,6 +193,15 @@ uint8_t get_heartbeat_from_hardware()
     return hw_cfg_cb.heartbeat;
 }
 
+uint16_t getLmp_subversion()
+{
+    return hw_cfg_cb.lmp_subversion;
+}
+uint8_t getchip_type()
+{
+    return hw_cfg_cb.chip_type;
+}
+
 struct rtk_epatch_entry *rtk_get_patch_entry(bt_hw_cfg_cb_t *cfg_cb)
 {
     uint16_t i;

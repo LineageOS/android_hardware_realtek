@@ -60,6 +60,7 @@
 ******************************************************************************/
 #define H5_TRACE_DATA_ENABLE 0//if you want to see data tx and rx, set H5_TRACE_DATA_ENABLE 1
 #define H5_LOG_VERBOSE      0
+#define ENABLE_BLE_8703 1
 
 unsigned int h5_log_enable = 1;
 
@@ -1571,6 +1572,29 @@ uint8_t internal_event_intercept_h5(void)
 * @param skb socket buffer
 *
 */
+extern uint16_t getLmp_subversion();
+extern uint8_t getchip_type();
+
+
+#if  ENABLE_BLE_8703
+
+const uint8_t le_white_list_size_pack[7]={0x0e, 0x05, 0x02, 0x0f, 0x20, 0x00, 0x20};
+const uint8_t le_buf_size_pack[9]={0x0e, 0x07, 0x02, 0x02, 0x20, 0x00, 0x1b, 0x00, 0x10};
+const uint8_t le_support_state_pack[14]={0x0e,0x0c,0x02,0x1c,0x20,0x00,0xff,0xff,0xff,0xff,0x00,0x00,0x00,0x00};
+const uint8_t le_local_support_pack[14]={0x0e,0x0c,0x02,0x03,0x20,0x00,0x00,0x01,0x00,0x00,0x00,0x00,0x00,0x00};
+const uint8_t le_set_event_pack[6]={0x0e, 0x04, 0x02, 0x01, 0x20, 0x00};
+const uint8_t le_set_rand[14]={0x0e, 0x0c, 0x02, 0x18, 0x20, 0x00, 0x3c, 0x4d, 0x17, 0x9a, 0x9e, 0xa6, 0x0b, 0x4d};
+
+static void send_fake_le_pack(uint8_t *pack,uint32_t len){
+	sk_buff 	*rx_skb;
+	rx_skb = skb_alloc_and_init(HCI_EVENT_PKT, pack, len);
+
+	pthread_mutex_lock(&rtk_h5.data_mutex);
+	skb_queue_tail(rtk_h5.recv_data, rx_skb);
+	pthread_cond_signal(&rtk_h5.data_cond);
+	pthread_mutex_unlock(&rtk_h5.data_mutex);
+}
+#endif
 static uint8_t hci_recv_frame(sk_buff *skb, uint8_t pkt_type)
 {
     uint8_t intercepted = 0;
@@ -1613,6 +1637,53 @@ static uint8_t hci_recv_frame(sk_buff *skb, uint8_t pkt_type)
             *( p-2) = HCI_COMMAND_COMPLETE_EVT;
             p[0]=0x02;p[1]=0xff;p[2]=0x3b;p[3]=0x01;
         }// fix HciUnknownCommand test fail
+#if  ENABLE_BLE_8703
+        if(getLmp_subversion() == 0x8703 && getchip_type()==0x07)
+        {
+            if(event_code == HCI_COMMAND_COMPLETE_EVT
+               && len==0x0c && p[0]==0x02 && p[1]==0x01 && p[2]==0x10){
+                p[4]=0x05;
+                p[7]=0x05;
+            }
+            if(event_code == HCI_COMMAND_COMPLETE_EVT && len==0x0e && p[0]==0x02 && p[1]==0x04 && p[2]==0x10 ){
+                if(p[4]==0x00)
+                    p[10]|=0x40;
+                if(p[4]==0x01)
+                    p[6]|=0x02;
+            }
+            if(event_code == HCI_COMMAND_STATUS_EVT && len==0x04 && p[0]==0x01 && p[1]==0x02 && p[2]==0x0f &&p[3]==0x20){
+                skb_free(&skb);
+                intercepted = 1;
+                send_fake_le_pack((uint8_t *)le_white_list_size_pack,7);
+            }
+            else if(event_code == HCI_COMMAND_STATUS_EVT && len==0x04 && p[0]==0x01 && p[1]==0x02 && p[2]==0x02 &&p[3]==0x20){
+                skb_free(&skb);
+                intercepted = 1;
+                send_fake_le_pack((uint8_t *)le_buf_size_pack,9);
+            }
+            else if(event_code == HCI_COMMAND_STATUS_EVT && len==0x04 && p[0]==0x01 && p[1]==0x02 && p[2]==0x1c &&p[3]==0x20){
+                skb_free(&skb);
+                intercepted = 1;
+                send_fake_le_pack((uint8_t *)le_support_state_pack,14);
+            }
+            else if(event_code == HCI_COMMAND_STATUS_EVT && len==0x04 && p[0]==0x01 && p[1]==0x02 && p[2]==0x03 &&p[3]==0x20){
+                skb_free(&skb);
+                intercepted = 1;
+                send_fake_le_pack((uint8_t *)le_local_support_pack,14);
+            }
+            else if(event_code == HCI_COMMAND_STATUS_EVT && len==0x04 && p[0]==0x01 && p[1]==0x02 && p[2]==0x01 &&p[3]==0x20){
+                skb_free(&skb);
+                intercepted = 1;
+                send_fake_le_pack((uint8_t *)le_set_event_pack,6);
+            }
+            else if(event_code == HCI_COMMAND_STATUS_EVT && len==0x04 && p[0]==0x01 && p[1]==0x02 && p[2]==0x18 &&p[3]==0x20){
+                skb_free(&skb);
+                intercepted = 1;
+                send_fake_le_pack((uint8_t *)le_set_rand,14);
+            }
+
+        }
+#endif
 
         if(loopbackmode == 0x01){
             if(event_code == HCI_LOOPBACK_COMMAND_EVT

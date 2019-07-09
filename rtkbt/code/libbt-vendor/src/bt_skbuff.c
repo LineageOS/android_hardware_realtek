@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- *  Copyright (C) 2016 Realtek Corporation.
+ *  Copyright (C) 2009-2018 Realtek Corporation.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -267,14 +267,16 @@ RtbQueueInit(
 )
 {
     RTB_QUEUE_HEAD* RtbQueue = NULL;
-
+    int ret = 0;
     RtbQueue = malloc(sizeof(RTB_QUEUE_HEAD));
     if(RtbQueue)
     {
-        pthread_mutex_init(&RtbQueue->Lock, NULL);
-        ListInitializeHeader(&RtbQueue->List);
-        RtbQueue->QueueLen = 0;
-        return RtbQueue;
+        ret = pthread_mutex_init(&RtbQueue->Lock, NULL);
+        if(!ret) {
+          ListInitializeHeader(&RtbQueue->List);
+          RtbQueue->QueueLen = 0;
+          return RtbQueue;
+        }
     }
 
     //error code comes here

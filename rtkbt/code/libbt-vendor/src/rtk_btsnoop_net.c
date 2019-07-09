@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- *  Copyright (C) 2013 Google, Inc.
+ *  Copyright (C) 2009-2018 Realtek Corporation.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -15,10 +15,11 @@
  *  limitations under the License.
  *
  ******************************************************************************/
-
 #define LOG_TAG "rtk_btsnoop_net"
 #include "rtk_btsnoop_net.h"
 #include <unistd.h>
+
+#define RTK_NO_INTR(fn)  do {} while ((fn) == -1 && errno == EINTR)
 
 #define DATA_DIRECT_2_ELLISY 1
 
@@ -44,7 +45,7 @@ static pthread_mutex_t btsnoop_log_lock;
 
 
 static void rtk_safe_close_(int *fd);
-static void *rtk_listen_fn_();
+static void *rtk_listen_fn_(void *context);
 
 static const char *RTK_LISTEN_THREAD_NAME_ = "rtk_btsnoop_net";
 static const int RTK_LOCALHOST_ = 0xC0A80AE2;       // 192.168.10.226
@@ -344,12 +345,14 @@ void rtk_btsnoop_net_write(serial_data_type_t type, uint8_t *data, bool is_recei
     client_addr.sin_addr.s_addr = htonl(RTK_REMOTEHOST_);
     client_addr.sin_port = htons(RTK_REMOTE_PORT_);
     pthread_mutex_lock(&rtk_client_socket_lock_);
-    sendto(rtk_listen_socket_, buffer, (length+i), 0,(struct sockaddr*)&client_addr, sizeof(struct sockaddr_in));
+    int ret;
+    RTK_NO_INTR(ret = sendto(rtk_listen_socket_, buffer, (length+i), 0,(struct sockaddr*)&client_addr, sizeof(struct sockaddr_in)));
     //sendto(rtk_listen_socket_, buffer, 25, 0,(struct sockaddr*)&client_addr, sizeof(struct sockaddr_in));
     pthread_mutex_unlock(&rtk_client_socket_lock_);
 }
 
-static void *rtk_listen_fn_() {
+static void *rtk_listen_fn_(void *context) {
+    RTK_UNUSED(context);
     prctl(PR_SET_NAME, (unsigned long)RTK_LISTEN_THREAD_NAME_, 0, 0, 0);
 
     rtk_listen_socket_ = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);

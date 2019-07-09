@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- *  Copyright (C) 2016 Realtek Corporation.
+ *  Copyright (C) 2009-2018 Realtek Corporation.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -38,15 +38,16 @@
 #include <fcntl.h>
 #include <termios.h>
 #include <errno.h>
-#include <pthread.h>
 #include <signal.h>
 #include <time.h>
+#include <pthread.h>
+#include <unistd.h>
+#include <sys/types.h>
 #include <sys/prctl.h>
 #include <sys/syscall.h>
 #include <arpa/inet.h>
 #include <string.h>
 #include <linux/wait.h>
-#include <unistd.h>
 
 #include "hci_h5_int.h"
 #include "bt_skbuff.h"
@@ -274,6 +275,7 @@ static pthread_mutex_t h5_wakeup_mutex = PTHREAD_MUTEX_INITIALIZER;
 /* Num of allowed outstanding HCI CMD packets */
 volatile int num_hci_cmd_pkts = 1;
 extern unsigned int rtkbt_h5logfilter;
+extern void userial_recv_rawdata_hook(unsigned char *buffer, unsigned int total_length);
 
 /******************************************************************************
 **  Static variables
@@ -395,24 +397,26 @@ static void H5LogMsg(const char *fmt_str, ...)
         return;
      }
 }
-/*
-static void H5LogMsgVerbose(const char *fmt_str, ...)
-{
-#if H5_LOG_VERBOSE
-	static char buffer[H5_LOG_BUF_SIZE];
-    va_list ap;
-    va_start(ap, fmt_str);
-    vsnprintf(&buffer[0], H5_LOG_MAX_SIZE, fmt_str, ap);
-    va_end(ap);
 
-    LOGI0("H5: ", buffer);
-#else
-	va_list ap;
-	va_start(ap, fmt_str);
-    va_end(ap);
-    return;
-#endif
-}*/
+static void rtkbt_h5_send_hw_error()
+{
+    unsigned char p_buf[100];
+    const char *str = "host stack: h5 send error";
+    int length = strlen(str) + 1 + 4;
+    p_buf[0] = HCIT_TYPE_EVENT;//event
+    p_buf[1] = HCI_VSE_SUBCODE_DEBUG_INFO_SUB_EVT;//firmwre event log
+    p_buf[2] = strlen(str) + 2;//len
+    p_buf[3] = 0x01;// host log opcode
+    strcpy((char *)&p_buf[4], str);
+    userial_recv_rawdata_hook(p_buf,length);
+
+    length = 4;
+    p_buf[0] = HCIT_TYPE_EVENT;//event
+    p_buf[1] = HCI_HARDWARE_ERROR_EVT;//hardware error
+    p_buf[2] = 0x01;//len
+    p_buf[3] = 0xfb;//h5 error code
+    userial_recv_rawdata_hook(p_buf,length);
+}
 
 // reverse bit
 static __inline uint8_t bit_rev8(uint8_t byte)
@@ -798,6 +802,7 @@ static sk_buff * h5_prepare_pkt(tHCI_H5_CB *h5, uint8_t *data, signed long len, 
     case H5_ACK_PKT:
     case H5_VDRSPEC_PKT:
     case H5_LINK_CTL_PKT:
+    case HCI_SCODATA_PKT:
     rel = H5_UNRELIABLE_PKT;// unreliable
     break;
     default:
@@ -1204,6 +1209,10 @@ static void rtk_notify_hw_h5_init_result(uint8_t status)
     sk_buff     *rx_skb;
     rx_skb = skb_alloc_and_init(HCI_EVENT_PKT, sync_event, sizeof(sync_event));
 
+    if(!rx_skb) {
+        ALOGE("%s, rx_skb alloc fail!", __func__);
+        return;
+    }
     pthread_mutex_lock(&rtk_h5.data_mutex);
     skb_queue_tail(rtk_h5.recv_data, rx_skb);
     pthread_cond_signal(&rtk_h5.data_cond);
@@ -1317,6 +1326,7 @@ int h5_enqueue(IN sk_buff *skb)
     case H5_LINK_CTL_PKT:
     case H5_ACK_PKT:
     case H5_VDRSPEC_PKT:
+    case HCI_SCODATA_PKT:
         skb_queue_tail(rtk_h5.unrel, skb);/* 3-wire LinkEstablishment*/
         break;
     default:
@@ -1441,7 +1451,8 @@ void h5_process_ctl_pkts(void)
         if (!memcmp(skb_get_data(skb), h5sync, 0x2)) {
 
             H5LogMsg("H5: <<<---recv sync req in H5_ACTIVE");
-            kill(getpid(), SIGKILL);
+            rtkbt_h5_send_hw_error();
+            //kill(getpid(), SIGKILL);
             hci_h5_send_sync_resp();
             H5LogMsg("H5 : H5_ACTIVE transit to H5_UNINITIALIZED");
             rtk_h5.link_estab_state = H5_UNINITIALIZED;
@@ -1478,95 +1489,7 @@ uint8_t isRtkInternalCommand(uint16_t opcode)
 
 }
 
-
-/*******************************************************************************
-**
-** Function         internal_event_intercept_h5
-**
-** Description      This function is called to parse received HCI event and
-**                  - update the Num_HCI_Command_Packets
-**                  - intercept the event if it is the result of an early
-**                    issued internal command.
-**
-** Returns          TRUE : if the event had been intercepted for internal process
-**                  FALSE : send this event to core stack
-**
-*******************************************************************************/
-uint8_t internal_event_intercept_h5(void)
-{
-    bool h5_int_command = 0;//if it the H5 int command like H5 vendor cmd or Coex cmd h5_int_command=1;
-    tHCI_H5_CB *p_cb = &rtk_h5;
-    sk_buff * skb = rtk_h5.rx_skb;
-    //uint8_t *ph5_payload = NULL;
-    //ph5_payload = (uint8_t *)(p_cb->p_rcv_msg + 1);
-
-    //process fw change baudrate and patch download
-    uint8_t     *p;
-    uint8_t     event_code;
-    uint16_t    opcode, len;
-    p = (uint8_t *)(p_cb->p_rcv_msg + 1);
-
-    event_code = *p++;
-    len = *p++;
-    H5LogMsg("event_code(0x%x), len = %d", event_code, len);
-    if (event_code == HCI_COMMAND_COMPLETE_EVT)
-    {
-        num_hci_cmd_pkts = *p++;
-        STREAM_TO_UINT16(opcode, p);
-        H5LogMsg("event_code(0x%x)  opcode (0x%x) p_cb->int_cmd_rsp_pending %d", event_code,opcode,p_cb->int_cmd_rsp_pending);
-
-        if (p_cb->int_cmd_rsp_pending > 0)
-        {
-            H5LogMsg("CommandCompleteEvent for command (0x%04X)", opcode);
-            if (opcode == p_cb->int_cmd[p_cb->int_cmd_rd_idx].opcode)
-            {
-                //ONLY HANDLE H5 INIT CMD COMMAND COMPLETE EVT
-                h5_int_command = 1;
-                if(opcode == HCI_VSC_UPDATE_BAUDRATE)
-                {
-                    //need to set a timer, add wait for retransfer packet from controller.
-                    //if there is no packet rx from controller, we can assure baudrate change success.
-                    H5LogMsg("CommandCompleteEvent for command 2 h5_start_wait_controller_baudrate_ready_timer (0x%04X)", opcode);
-                    h5_start_wait_controller_baudrate_ready_timer();
-                }
-                else
-                {
-
-                    if (p_cb->int_cmd[p_cb->int_cmd_rd_idx].cback != NULL)
-                    {
-                        H5LogMsg("CommandCompleteEvent for command (0x%04X) p_cb->int_cmd[p_cb->int_cmd_rd_idx].cback(p_cb->p_rcv_msg)", opcode);
-                        p_cb->int_cmd[p_cb->int_cmd_rd_idx].cback(p_cb->p_rcv_msg);
-                    }
-                    else
-                    {
-                        H5LogMsg("CommandCompleteEvent for command Missing cback function buffer_allocator->free(p_cb->p_rcv_msg) (0x%04X)", opcode);
-                        free(p_cb->p_rcv_msg);
-                    }
-                }
-
-                p_cb->int_cmd_rd_idx = ((p_cb->int_cmd_rd_idx+1) & INT_CMD_PKT_IDX_MASK);
-                p_cb->int_cmd_rsp_pending--;
-            }
-        }
-        else {
-            if(opcode == HCI_VSC_UPDATE_BAUDRATE)
-            {
-                h5_int_command |= 0x80;
-                rtk_h5.internal_skb = skb;
-                //need to set a timer, add wait for retransfer packet from controller.
-                //if there is no packet rx from controller, we can assure baudrate change success.
-                H5LogMsg("CommandCompleteEvent for command 2 h5_start_wait_controller_baudrate_ready_timer (0x%04X)", opcode);
-                h5_start_wait_controller_baudrate_ready_timer();
-            }
-        }
-    }
-
-    return h5_int_command;
-
-}
-
-
-/**
+/*****************************************************************************
 * Check if it's a hci frame, if it is, complete it with response or parse the cmd complete event
 *
 * @param skb socket buffer
@@ -1594,6 +1517,24 @@ static void send_fake_le_pack(uint8_t *pack,uint32_t len){
 	pthread_cond_signal(&rtk_h5.data_cond);
 	pthread_mutex_unlock(&rtk_h5.data_mutex);
 }
+
+
+static uint16_t encHandle = 0x0000;
+
+static void send_fake_enc_keysize(uint16_t handle,uint8_t keysize){
+	sk_buff 	*rx_skb;
+	uint8_t pack[9]={0x0e, 0x07, 0x01, 0x08, 0x14, 0x00, 0x03, 0x00, 0x10};
+	pack[6]=(uint8_t)handle;pack[7]=(uint8_t)(handle>>8);
+	pack[8] = keysize;
+	rx_skb = skb_alloc_and_init(HCI_EVENT_PKT, pack, 9);
+
+	pthread_mutex_lock(&rtk_h5.data_mutex);
+	skb_queue_tail(rtk_h5.recv_data, rx_skb);
+	pthread_cond_signal(&rtk_h5.data_cond);
+	pthread_mutex_unlock(&rtk_h5.data_mutex);
+}
+
+
 #endif
 static uint8_t hci_recv_frame(sk_buff *skb, uint8_t pkt_type)
 {
@@ -1645,11 +1586,20 @@ static uint8_t hci_recv_frame(sk_buff *skb, uint8_t pkt_type)
                 p[4]=0x05;
                 p[7]=0x05;
             }
+            if(event_code == HCI_COMMAND_COMPLETE_EVT
+               && len==0x44 && p[0]==0x02 && p[1]==0x02 && p[2]==0x10){
+                p[24]|=0x10;
+            }
             if(event_code == HCI_COMMAND_COMPLETE_EVT && len==0x0e && p[0]==0x02 && p[1]==0x04 && p[2]==0x10 ){
                 if(p[4]==0x00)
                     p[10]|=0x40;
                 if(p[4]==0x01)
                     p[6]|=0x02;
+            }
+            if(event_code == HCI_COMMAND_COMPLETE_EVT && len==0x04 &&  p[1]==0x08 &&p[2]==0x14){
+                skb_free(&skb);
+                intercepted = 1;
+                send_fake_enc_keysize(encHandle,0x10);
             }
             if(event_code == HCI_COMMAND_STATUS_EVT && len==0x04 && p[0]==0x01 && p[1]==0x02 && p[2]==0x0f &&p[3]==0x20){
                 skb_free(&skb);
@@ -2016,14 +1966,9 @@ static bool h5_recv(tHCI_H5_CB *h5, uint8_t *data, int count)
 /******************************************************************************
 **  Static functions
 ******************************************************************************/
-static void h5_data_ready_cb_signal_exit()
+static void data_ready_cb_thread(void *arg)
 {
-    pthread_mutex_lock(&rtk_h5.data_mutex);
-    pthread_cond_signal(&rtk_h5.data_cond);
-    pthread_mutex_unlock(&rtk_h5.data_mutex);
-}
-static void data_ready_cb_thread()
-{
+    RTK_UNUSED(arg);
     sk_buff *skb;
     uint8_t pkt_type = 0;
     unsigned int total_length = 0;
@@ -2035,33 +1980,32 @@ static void data_ready_cb_thread()
     while (h5_data_ready_running)
     {
         pthread_mutex_lock(&rtk_h5.data_mutex);
-        while ((skb_queue_get_length(rtk_h5.recv_data) == 0) && h5_retransfer_running)
+        while (h5_data_ready_running && (skb_queue_get_length(rtk_h5.recv_data) == 0))
         {
             pthread_cond_wait(&rtk_h5.data_cond, &rtk_h5.data_mutex);
         }
         pthread_mutex_unlock(&rtk_h5.data_mutex);
 
-        if(!h5_retransfer_running)
-            break;
-
-        if((skb = skb_dequeue_head(rtk_h5.recv_data)) != NULL) {
+        if(h5_data_ready_running && (skb = skb_dequeue_head(rtk_h5.recv_data)) != NULL) {
             rtk_h5.data_skb = skb;
         }
+        else
+          continue;
 
         pkt_type = skb_get_pkt_type(rtk_h5.data_skb);
         total_length = skb_get_data_length(rtk_h5.data_skb);
         h5_int_hal_callbacks->h5_data_ready_cb(pkt_type, total_length);
     }
 
-    ALOGE("data_ready_cb_thread exiting");
+    H5LogMsg("data_ready_cb_thread exiting");
     pthread_exit(NULL);
 
 }
 
-static void data_retransfer_thread()//(void *arg)
+static void data_retransfer_thread(void *arg)
 {
+    RTK_UNUSED(arg);
     uint16_t events;
-    //uint32_t i = 0;
     uint16_t data_retrans_counts = DATA_RETRANS_COUNT;
 
     H5LogMsg("data_retransfer_thread started");
@@ -2090,6 +2034,7 @@ static void data_retransfer_thread()//(void *arg)
 
             if(rtk_h5.data_retrans_count < data_retrans_counts)
             {
+                pthread_mutex_lock(&h5_wakeup_mutex);
                 while ((skb = skb_dequeue_tail(rtk_h5.unack)) != NULL)
                 {
 #if H5_TRACE_DATA_ENABLE
@@ -2105,6 +2050,7 @@ static void data_retransfer_thread()//(void *arg)
                     skb_queue_head(rtk_h5.rel, skb);
 
                 }
+                pthread_mutex_unlock(&h5_wakeup_mutex);
                 rtk_h5.data_retrans_count++;
                 h5_wake_up();
 
@@ -2113,7 +2059,8 @@ static void data_retransfer_thread()//(void *arg)
             {
             //do not put packet to rel queue, and do not send
             //Kill bluetooth
-            kill(getpid(), SIGKILL);
+            rtkbt_h5_send_hw_error();
+            //kill(getpid(), SIGKILL);
             }
 
         }
@@ -2125,7 +2072,7 @@ static void data_retransfer_thread()//(void *arg)
 
 }
 
-    ALOGE("data_retransfer_thread exiting");
+    H5LogMsg("data_retransfer_thread exiting");
     pthread_exit(NULL);
 
 }
@@ -2280,12 +2227,11 @@ void hci_h5_int_init(hci_h5_callbacks_t* h5_callbacks)
 *******************************************************************************/
 void hci_h5_cleanup(void)
 {
-    ALOGE("hci_h5_cleanup");
+    H5LogMsg("hci_h5_cleanup");
     //uint8_t try_cnt=10;
     int result;
 
     rtk_h5.cleanuping = 1;
-    ms_delay(200);
 
 
     //btsnoop_cleanup();
@@ -2296,27 +2242,29 @@ void hci_h5_cleanup(void)
     h5_free_wait_controller_baudrate_ready_timer();
     h5_free_hw_init_ready_timer();
 
+    if(h5_data_ready_running) {
+        h5_data_ready_running = 0;
+        pthread_mutex_lock(&rtk_h5.data_mutex);
+        pthread_cond_signal(&rtk_h5.data_cond);
+        pthread_mutex_unlock(&rtk_h5.data_mutex);
+        if ((result = pthread_join(rtk_h5.thread_data_ready_cb, NULL)) < 0)
+            ALOGE("H5 thread_data_ready_cb pthread_join() FAILED result:%d", result);
+    }
 
     if (h5_retransfer_running)
     {
         h5_retransfer_running = 0;
-        h5_data_ready_cb_signal_exit();
-        if ((result = pthread_join(rtk_h5.thread_data_ready_cb, NULL)) < 0)
-            ALOGE("H5 thread_data_ready_cb pthread_join() FAILED result:%d", result);
-		
         h5_retransfer_signal_event(H5_EVENT_EXIT);
         if ((result = pthread_join(rtk_h5.thread_data_retrans, NULL)) < 0)
         ALOGE("H5 pthread_join() FAILED result:%d", result);
     }
 
-    ms_delay(200);
-
-
-    pthread_mutex_destroy(&rtk_h5.data_mutex);
-    pthread_cond_destroy(&rtk_h5.data_cond);
+    //ms_delay(200);
 
     pthread_mutex_destroy(&rtk_h5.mutex);
+    pthread_mutex_destroy(&rtk_h5.data_mutex);
     pthread_cond_destroy(&rtk_h5.cond);
+    pthread_cond_destroy(&rtk_h5.data_cond);
 
     RtbQueueFree(rtk_h5.unack);
     RtbQueueFree(rtk_h5.rel);
@@ -2325,28 +2273,6 @@ void hci_h5_cleanup(void)
     h5_int_hal_callbacks = NULL;
     rtk_h5.internal_skb = NULL;
 }
-
-
-/*******************************************************************************
-**
-** Function        hci_h5_parse_msg
-**
-** Description     Construct HCI EVENT/ACL packets and send them to stack once
-**                 complete packet has been received.
-**
-** Returns         Number of need to be red bytes
-**
-*******************************************************************************/
-uint16_t  hci_h5_parse_msg(uint8_t *byte, uint16_t count)
-{
-    //uint16_t bytes_needed = 0;
-    uint8_t     h5_byte;
-    h5_byte  = *byte;
-    //H5LogMsg("hci_h5_receive_msg byte:%d",h5_byte);
-    h5_recv(&rtk_h5, &h5_byte, count);
-    return 1;
-}
-
 
 /*******************************************************************************
 **
@@ -2408,6 +2334,11 @@ uint16_t hci_h5_send_cmd(serial_data_type_t type, uint8_t *data, uint16_t length
     sk_buff * skb = NULL;
     uint16_t bytes_to_send, opcode;
 
+    if(type != DATA_TYPE_COMMAND) {
+        ALOGE("%s Receive wrong type type : %d", __func__, type);
+        return -1;
+    }
+
     skb = skb_alloc_and_init(type, data, length);
     if(!skb) {
         ALOGE("send cmd skb_alloc_and_init fail!");
@@ -2431,6 +2362,11 @@ uint16_t hci_h5_send_cmd(serial_data_type_t type, uint8_t *data, uint16_t length
     }
     if(opcode == HCI_WRITE_LOOPBACK_MODE)
         loopbackmode = 0x01;
+	#if ENABLE_BLE_8703
+		if(opcode == 0x1408)//enc key size
+			 encHandle = (uint16_t)data[1] + ((uint16_t)data[2] << 8);
+	 
+	#endif
 
     bytes_to_send = h5_wake_up();
     return length;
@@ -2611,7 +2547,8 @@ static timer_t OsAllocateTimer(tTIMER_HANDLE_CBACK timer_callback)
     return OsStartTimer(timerid, 0, 0);
  }
 
-static void h5_retransfer_timeout_handler(){//(union sigval sigev_value) {
+static void h5_retransfer_timeout_handler(union sigval sigev_value) {
+    RTK_UNUSED(sigev_value);
     H5LogMsg("h5_retransfer_timeout_handler");
     if(rtk_h5.cleanuping)
     {
@@ -2621,7 +2558,8 @@ static void h5_retransfer_timeout_handler(){//(union sigval sigev_value) {
     h5_retransfer_signal_event(H5_EVENT_RX);
 }
 
-static void h5_sync_retrans_timeout_handler(){//(union sigval sigev_value) {
+static void h5_sync_retrans_timeout_handler(union sigval sigev_value) {
+    RTK_UNUSED(sigev_value);
     H5LogMsg("h5_sync_retrans_timeout_handler");
     if(rtk_h5.cleanuping)
     {
@@ -2643,7 +2581,8 @@ static void h5_sync_retrans_timeout_handler(){//(union sigval sigev_value) {
 
 }
 
-static void h5_conf_retrans_timeout_handler(){//(union sigval sigev_value) {
+static void h5_conf_retrans_timeout_handler(union sigval sigev_value) {
+    RTK_UNUSED(sigev_value);
     H5LogMsg("h5_conf_retrans_timeout_handler");
     if(rtk_h5.cleanuping)
     {
@@ -2667,7 +2606,8 @@ static void h5_conf_retrans_timeout_handler(){//(union sigval sigev_value) {
 
 }
 
-static void h5_wait_controller_baudrate_ready_timeout_handler(){//(union sigval sigev_value) {
+static void h5_wait_controller_baudrate_ready_timeout_handler(union sigval sigev_value) {
+    RTK_UNUSED(sigev_value);
     H5LogMsg("h5_wait_ct_baundrate_ready_timeout_handler");
     if(rtk_h5.cleanuping)
     {
@@ -2685,7 +2625,8 @@ static void h5_wait_controller_baudrate_ready_timeout_handler(){//(union sigval 
     rtk_h5.internal_skb = NULL;
 }
 
-static void h5_hw_init_ready_timeout_handler(){//(union sigval sigev_value) {
+static void h5_hw_init_ready_timeout_handler(union sigval sigev_value) {
+    RTK_UNUSED(sigev_value);
     H5LogMsg("h5_hw_init_ready_timeout_handler");
     if(rtk_h5.cleanuping)
     {

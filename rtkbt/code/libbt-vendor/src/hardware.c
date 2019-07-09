@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- *  Copyright (C) 2009-2012 Realtek Corporation
+ *  Copyright (C) 2009-2018 Realtek Corporation
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -27,7 +27,7 @@
  ******************************************************************************/
 
 #define LOG_TAG "bt_hwcfg"
-#define RTKBT_RELEASE_NAME "20180702_BT_ANDROID_9.0"
+#define RTKBT_RELEASE_NAME "20190520_BT_ANDROID_9.0"
 
 #include <utils/Log.h>
 #include <sys/types.h>
@@ -56,7 +56,6 @@
 /******************************************************************************
 **  Constants &  Macros
 ******************************************************************************/
-#define RTK_VERSION "4.1.1"
 
 /******************************************************************************
 **  Externs
@@ -96,16 +95,32 @@ int getmacaddr(unsigned char * addr)
     char data[256], *str;
     int addr_fd;
 
-    if ((addr_fd = open("/data/misc/bluetooth/bdaddr", O_RDONLY)) != -1)
-    {
-        memset(data, 0, sizeof(data));
-        read(addr_fd, data, 17);
-        for (i = 0,str = data; i < 6; i++) {
-           addr[5-i] = (unsigned char)strtoul(str, &str, 16);
-           str++;
+    char property[100] = {0};
+    if (property_get("persist.vendor.rtkbt.bdaddr_path", property, "none")) {
+        if(strcmp(property, "none") == 0) {
+            return -1;
         }
-        close(addr_fd);
-        return 0;
+        else if(strcmp(property, "default") == 0) {
+          memcpy(addr, vnd_local_bd_addr, BD_ADDR_LEN);
+          return 0;
+
+        }
+        else if ((addr_fd = open(property, O_RDONLY)) != -1)
+        {
+            memset(data, 0, sizeof(data));
+            int ret = read(addr_fd, data, 17);
+            if(ret < 17) {
+                ALOGE("%s, read length = %d", __func__, ret);
+                close(addr_fd);
+                return -1;
+            }
+            for (i = 0,str = data; i < 6; i++) {
+                addr[5-i] = (unsigned char)strtoul(str, &str, 16);
+                str++;
+            }
+            close(addr_fd);
+            return 0;
+        }
     }
     return -1;
 }

@@ -1,3 +1,21 @@
+/******************************************************************************
+ *
+ *  Copyright (C) 2009-2018 Realtek Corporation
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at:
+ *
+ *  http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ *
+ ******************************************************************************/
+
 #ifndef HARDWARE_H
 #define HARDWARE_H
 
@@ -24,12 +42,6 @@
 
 #define MAX_ORG_CONFIG_SIZE     (0x100*14)
 #define MAX_ALT_CONFIG_SIZE     (0x100*2)
-
-#define STREAM_TO_UINT8(u8, p) \
-  {                            \
-    (u8) = (uint8_t)(*(p));    \
-    (p) += 1;                  \
-  }
 
 struct rtk_bt_vendor_config_entry{
     uint16_t offset;
@@ -70,6 +82,7 @@ struct rtk_bt_vendor_config{
 
 #define CONFIG_MAC_OFFSET_GEN_1_2       (0x3C)      //MAC's OFFSET in config/efuse for realtek generation 1~2 bluetooth chip
 #define CONFIG_MAC_OFFSET_GEN_3PLUS     (0x44)      //MAC's OFFSET in config/efuse for rtk generation 3+ bluetooth chip
+#define CONFIG_MAC_OFFSET_GEN_4PLUS     (0x30)      //MAC's OFFSET in config/efuse for rtk generation 4+ bluetooth chip
 
 #define HCI_EVT_CMD_CMPL_OPCODE_OFFSET          (3)     //opcode's offset in COMMAND Completed Event
 #define HCI_EVT_CMD_CMPL_STATUS_OFFSET          (5)     //status's offset in COMMAND Completed Event
@@ -168,6 +181,7 @@ typedef struct
 #define ROM_LMP_8723b               0x8723
 #define ROM_LMP_8821a               0X8821
 #define ROM_LMP_8761a               0X8761
+#define ROM_LMP_8761b               0X8761
 #define ROM_LMP_8703a               0x8723
 #define ROM_LMP_8763a               0x8763
 #define ROM_LMP_8703b               0x8703
@@ -175,6 +189,7 @@ typedef struct
 #define ROM_LMP_8822b               0x8822
 #define ROM_LMP_8723d               0x8723
 #define ROM_LMP_8821c               0x8821
+#define ROM_LMP_8822c               0x8822
 
 struct rtk_epatch_entry{
     uint16_t chip_id;

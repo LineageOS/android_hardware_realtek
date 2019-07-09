@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- *  Copyright (C) 1999-2014 Broadcom Corporation
+ *  Copyright (C) 2009-2018 Realtek Corporation.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -15,7 +15,6 @@
  *  limitations under the License.
  *
  ******************************************************************************/
-
 #ifndef HCIDEFS_H
 #define HCIDEFS_H
 
@@ -27,6 +26,8 @@
 #define HCI_PROTO_VERSION_4_0 0x06      /* Version for BT spec 4.0          */
 #define HCI_PROTO_VERSION_4_1 0x07      /* Version for BT spec 4.1          */
 #define HCI_PROTO_VERSION_4_2 0x08      /* Version for BT spec 4.2          */
+#define HCI_PROTO_VERSION_5_0 0x09      /* Version for BT spec 5.0          */
+
 
 /*
 **  Definitions for HCI groups
@@ -348,6 +349,43 @@
 #define HCI_BLE_READ_RESOLVABLE_ADDR_LOCAL  (0x002C | HCI_GRP_BLE_CMDS)
 #define HCI_BLE_SET_ADDR_RESOLUTION_ENABLE  (0x002D | HCI_GRP_BLE_CMDS)
 #define HCI_BLE_SET_RAND_PRIV_ADDR_TIMOUT   (0x002E | HCI_GRP_BLE_CMDS)
+#define HCI_BLE_READ_MAXIMUM_DATA_LENGTH    (0x002F | HCI_GRP_BLE_CMDS)
+#define HCI_BLE_READ_PHY                    (0x0030 | HCI_GRP_BLE_CMDS)
+#define HCI_BLE_SET_DEFAULT_PHY             (0x0031 | HCI_GRP_BLE_CMDS)
+#define HCI_BLE_SET_PHY                     (0x0032 | HCI_GRP_BLE_CMDS)
+#define HCI_BLE_ENH_RECEIVER_TEST           (0x0033 | HCI_GRP_BLE_CMDS)
+#define HCI_BLE_ENH_TRANSMITTER_TEST        (0x0034 | HCI_GRP_BLE_CMDS)
+#define HCI_LE_SET_EXT_ADVERTISING_RANDOM_ADDRESS (0x35 | HCI_GRP_BLE_CMDS)
+#define HCI_LE_SET_EXT_ADVERTISING_PARAM    (0x36 | HCI_GRP_BLE_CMDS)
+#define HCI_LE_SET_EXT_ADVERTISING_DATA     (0x37 | HCI_GRP_BLE_CMDS)
+#define HCI_LE_SET_EXT_ADVERTISING_SCAN_RESP (0x38 | HCI_GRP_BLE_CMDS)
+#define HCI_LE_SET_EXT_ADVERTISING_ENABLE   (0x39 | HCI_GRP_BLE_CMDS)
+#define HCI_LE_READ_MAXIMUM_ADVERTISING_DATA_LENGTH (0x003A | HCI_GRP_BLE_CMDS)
+#define HCI_LE_READ_NUMBER_OF_SUPPORTED_ADVERTISING_SETS \
+  (0x003B | HCI_GRP_BLE_CMDS)
+#define HCI_LE_REMOVE_ADVERTISING_SET       (0x003C | HCI_GRP_BLE_CMDS)
+#define HCI_LE_CLEAR_ADVERTISING_SETS       (0x003D | HCI_GRP_BLE_CMDS)
+#define HCI_LE_SET_PERIODIC_ADVERTISING_PARAM (0x003E | HCI_GRP_BLE_CMDS)
+#define HCI_LE_SET_PERIODIC_ADVERTISING_DATA (0x003F | HCI_GRP_BLE_CMDS)
+#define HCI_LE_SET_PERIODIC_ADVERTISING_ENABLE (0x0040 | HCI_GRP_BLE_CMDS)
+#define HCI_LE_SET_EXTENDED_SCAN_PARAMETERS (0x0041 | HCI_GRP_BLE_CMDS)
+#define HCI_LE_SET_EXTENDED_SCAN_ENABLE     (0x0042 | HCI_GRP_BLE_CMDS)
+#define HCI_LE_EXTENDED_CREATE_CONNECTION   (0x0043 | HCI_GRP_BLE_CMDS)
+#define HCI_BLE_PERIODIC_ADVERTISING_CREATE_SYNC (0x0044 | HCI_GRP_BLE_CMDS)
+#define HCI_BLE_PERIODIC_ADVERTISING_CREATE_SYNC_CANCEL \
+  (0x0045 | HCI_GRP_BLE_CMDS)
+#define HCI_BLE_PERIODIC_ADVERTISING_TERMINATE_SYNC \
+  (0x0046 | HCI_GRP_BLE_CMDS)
+#define HCI_BLE_ADD_DEVICE_TO_PERIODIC_ADVERTISING_LIST \
+  (0x0047 | HCI_GRP_BLE_CMDS)
+#define HCI_BLE_RM_DEVICE_FROM_PERIODIC_ADVERTISING_LIST \
+  (0x0048 | HCI_GRP_BLE_CMDS)
+#define HCI_BLE_CLEAR_PERIODIC_ADVERTISING_LIST (0x0049 | HCI_GRP_BLE_CMDS)
+#define HCI_BLE_READ_PERIODIC_ADVERTISING_LIST_SIZE (0x004A | HCI_GRP_BLE_CMDS)
+#define HCI_BLE_READ_TRANSMIT_POWER         (0x004B | HCI_GRP_BLE_CMDS)
+#define HCI_BLE_READ_RF_COMPENS_POWER       (0x004C | HCI_GRP_BLE_CMDS)
+#define HCI_BLE_WRITE_RF_COMPENS_POWER      (0x004D | HCI_GRP_BLE_CMDS)
+#define HCI_BLE_SET_PRIVACY_MODE            (0x004E | HCI_GRP_BLE_CMDS)
 
 /* LE Get Vendor Capabilities Command OCF */
 #define HCI_BLE_VENDOR_CAP_OCF    (0x0153 | HCI_GRP_VENDOR_SPECIFIC)
@@ -394,6 +432,9 @@
 
 /* tracking sub event */
 #define HCI_VSE_SUBCODE_BLE_TRACKING_SUB_EVT       0x56 /* Tracking event */
+
+/* debug info sub event */
+#define HCI_VSE_SUBCODE_DEBUG_INFO_SUB_EVT         0x57
 
 /* LE supported states definition */
 #define HCI_LE_ADV_STATE          0x00000001
@@ -2608,6 +2649,50 @@ typedef struct
 #define HCI_SUPP_COMMANDS_RLE_RC_CONN_PARAM_UPD_NEG_RPY_MASK          0x20
 #define HCI_SUPP_COMMANDS_LE_RC_CONN_PARAM_UPD_NEG_RPY_OFF           33
 #define HCI_LE_RC_CONN_PARAM_UPD_NEG_RPY_SUPPORTED(x)      ((x)[HCI_SUPP_COMMANDS_LE_RC_CONN_PARAM_UPD_NEG_RPY_OFF] & HCI_SUPP_COMMANDS_RLE_RC_CONN_PARAM_UPD_NEG_RPY_MASK)
+
+
+#define HCI_DATA_EVENT_MASK 3
+#define HCI_DATA_EVENT_OFFSET 12
+
+#define RTK_HANDLE_MASK 0x0FFF
+#define RTK_NONF_START_PACKET_BOUNDARY 0
+#define RTK_START_PACKET_BOUNDARY 2
+#define RTK_CONTINUATION_PACKET_BOUNDARY 1
+#define RTK_L2CAP_HEADER_PDU_LEN_SIZE 2
+#define RTK_L2CAP_HEADER_CID_SIZE 2
+#define RTK_L2CAP_HEADER_SIZE (RTK_L2CAP_HEADER_PDU_LEN_SIZE + RTK_L2CAP_HEADER_CID_SIZE)
+
+#define RTK_GET_BOUNDARY_FLAG(handle) (((handle) >> 12) & 0x0003)
+
+    // 2 bytes for opcode, 1 byte for parameter length (Volume 2, Part E, 5.4.1)
+#define COMMAND_PREAMBLE_SIZE 3
+    // 2 bytes for handle, 2 bytes for data length (Volume 2, Part E, 5.4.2)
+#define ACL_PREAMBLE_SIZE 4
+    // 2 bytes for handle, 1 byte for data length (Volume 2, Part E, 5.4.3)
+#define SCO_PREAMBLE_SIZE 3
+    // 1 byte for event code, 1 byte for parameter length (Volume 2, Part E, 5.4.4)
+#define EVENT_PREAMBLE_SIZE 2
+
+#define HCI_PACKET_TYPE_TO_INDEX(type) ((type) - 1)
+
+#define COMMON_DATA_LENGTH_INDEX 3
+
+#define EVENT_DATA_LENGTH_INDEX 2
+
+typedef struct {
+  uint8_t hci_version;
+  uint16_t hci_revision;
+  uint8_t lmp_version;
+  uint16_t manufacturer;
+  uint16_t lmp_subversion;
+} rtkbt_version_t;
+
+typedef struct {
+  uint8_t adverting_type;
+  bool    adverting_enable;
+  bool    adverting_start;
+  bool    connetion_enable;
+} rtkbt_lescn_t;
 
 #endif
 

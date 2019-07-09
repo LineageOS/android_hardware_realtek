@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- *  Copyright (C) 2014-2016 Realtek Corporation
+ *  Copyright (C) 2009-2018 Realtek Corporation.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -15,7 +15,6 @@
  *  limitations under the License.
  *
  ******************************************************************************/
-
 /******************************************************************************
  *
  *  Filename:      poll.c
@@ -217,6 +216,7 @@ void poll_timer_flush(void)
     struct itimerspec ts;
     struct sigevent se;
 
+    memset(&se, 0, sizeof(struct sigevent));
     BTPOLLDBG("poll_timer_flush: state %d", bt_poll_cb.state);
 
     if (bt_poll_cb.state != POLL_ENABLED)

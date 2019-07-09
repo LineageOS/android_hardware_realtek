@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- *  Copyright (C) 2009-2012 Realtek Corporation
+ *  Copyright (C) 2009-2018 Realtek Corporation
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -35,14 +35,12 @@
 #include <assert.h>
 #include "rtk_parse.h"
 #include "bt_skbuff.h"
+#include "rtk_common.h"
 
 /******************************************************************************
 **  Constants & Macros
 ******************************************************************************/
 #define RTK_NO_INTR(fn)  do {} while ((fn) == -1 && errno == EINTR)
-
-#define RTK_GET_BOUNDARY_FLAG(handle) (((handle) >> 12) & 0x0003)
-#define RTK_START_PACKET_BOUNDARY 2
 
 /**** baud rates ****/
 #define USERIAL_BAUD_300        0
@@ -104,21 +102,6 @@
 /******************************************************************************
 **  Type definitions
 ******************************************************************************/
-    // 2 bytes for opcode, 1 byte for parameter length (Volume 2, Part E, 5.4.1)
-#define COMMAND_PREAMBLE_SIZE 3
-    // 2 bytes for handle, 2 bytes for data length (Volume 2, Part E, 5.4.2)
-#define ACL_PREAMBLE_SIZE 4
-    // 2 bytes for handle, 1 byte for data length (Volume 2, Part E, 5.4.3)
-#define SCO_PREAMBLE_SIZE 3
-    // 1 byte for event code, 1 byte for parameter length (Volume 2, Part E, 5.4.4)
-#define EVENT_PREAMBLE_SIZE 2
-
-#define HCI_PACKET_TYPE_TO_INDEX(type) ((type) - 1)
-
-#define COMMON_DATA_LENGTH_INDEX 3
-
-#define EVENT_DATA_LENGTH_INDEX 2
-
 /* Structure used to configure serial port during open */
 typedef struct
 {
@@ -219,5 +202,5 @@ void userial_recv_rawdata_hook(unsigned char *buffer, unsigned int total_length)
 
 #define RTK_HANDLE_EVENT
 #define RTK_HANDLE_CMD
-#define CONFIG_SCO_OVER_HCI
+//#define CONFIG_SCO_OVER_HCI
 #endif /* USERIAL_VENDOR_H */

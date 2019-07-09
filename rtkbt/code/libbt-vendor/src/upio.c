@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- *  Copyright (C) 2009-2012 Realtek Corporation
+ *  Copyright (C) 2009-2018 Realtek Corporation
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -172,7 +172,7 @@ static int init_rfkill()
             break;
         }
     }
-	
+
     asprintf(&rfkill_state_path, "/sys/class/rfkill/rfkill%d/state", rfkill_id);
     return 0;
 }
@@ -369,9 +369,10 @@ int upio_set_bluetooth_power(int on)
 ** Returns         None
 **
 *******************************************************************************/
-void upio_set(uint8_t pio, uint8_t action)//(uint8_t pio, uint8_t action, uint8_t polarity)
+void upio_set(uint8_t pio, uint8_t action, uint8_t polarity)
 {
     //int rc;
+    RTK_UNUSED(polarity);
 #if (BT_WAKE_VIA_PROC == TRUE)
     int fd = -1;
     char buffer;
@@ -382,6 +383,7 @@ void upio_set(uint8_t pio, uint8_t action)//(uint8_t pio, uint8_t action, uint8_
         case UPIO_LPM_MODE:
             if (upio_state[UPIO_LPM_MODE] == action)
             {
+                RTK_UNUSED(lpm_mode[action]);
                 UPIODBG("LPM is %s already", lpm_mode[action]);
                 return;
             }
@@ -451,6 +453,7 @@ void upio_set(uint8_t pio, uint8_t action)//(uint8_t pio, uint8_t action, uint8_
         case UPIO_BT_WAKE:
             if (upio_state[UPIO_BT_WAKE] == action)
             {
+                RTK_UNUSED(lpm_state[action]);
                 UPIODBG("BT_WAKE is %s already", lpm_state[action]);
 
 #if (BT_WAKE_VIA_PROC == TRUE)

@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- *  Copyright (C) 2016 Realtek Corporation.
+ *  Copyright (C) 2009-2018 Realtek Corporation.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -84,6 +84,8 @@ typedef struct rtk_parse_manager_t {
     void (*rtk_delete_le_profile)(BD_ADDR bdaddr, uint16_t handle, uint8_t profile_map);
 
     void (*rtk_add_le_data_count)(uint8_t data_type);
+
+    void (*rtk_set_bt_on)(uint8_t bt_on);
 
 }rtk_parse_manager_t;
 

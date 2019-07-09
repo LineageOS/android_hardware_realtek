@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- *  Copyright (C) 2009-2012 Realtek Corporation
+ *  Copyright (C) 2009-2018 Realtek Corporation.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -15,7 +15,6 @@
  *  limitations under the License.
  *
  ******************************************************************************/
-
 /******************************************************************************
  *
  *  Filename:      userial_vendor.c
@@ -56,7 +55,7 @@
 /******************************************************************************
 **  functions
 ******************************************************************************/
-uint32_t Skt_Read(int fd, uint8_t *p_buf, uint32_t len)
+uint32_t Skt_Read(int fd, uint8_t *p_buf, uint32_t len, bool* condition)
 {
     int n_read = 0;
     struct pollfd pfd;
@@ -68,8 +67,10 @@ uint32_t Skt_Read(int fd, uint8_t *p_buf, uint32_t len)
 
     while (n_read < (int)len)
     {
+        if(condition && !(*condition))
+            return n_read;
         pfd.fd = fd;
-        pfd.events = POLLIN|POLLHUP;
+        pfd.events = POLLIN|POLLHUP|POLLNVAL|POLLRDHUP;
 
         /* make sure there is data prior to attempting read to avoid blocking
            a read for more than poll timeout */
@@ -86,7 +87,7 @@ uint32_t Skt_Read(int fd, uint8_t *p_buf, uint32_t len)
             break;
         }
 
-        if (pfd.revents & (POLLHUP|POLLNVAL) )
+        if (pfd.revents & (POLLHUP|POLLNVAL|POLLRDHUP) )
         {
             return 0;
         }
@@ -125,14 +126,14 @@ int Skt_Read_noblock(int fd, uint8_t *p_buf, uint32_t len)
     }
 
     pfd.fd = fd;
-    pfd.events = POLLIN|POLLHUP;
+    pfd.events = POLLIN|POLLHUP|POLLRDHUP;
 
     if (poll(&pfd, 1, 0) == 0)
     {
         return 0;
     }
 
-    if (pfd.revents & (POLLHUP|POLLNVAL) )
+    if (pfd.revents & (POLLHUP|POLLNVAL|POLLRDHUP) )
     {
         return 0;
     }

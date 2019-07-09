@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- *  Copyright (C) 2009-2012 Realtek Corporation
+ *  Copyright (C) 2009-2018 Realtek Corporation
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -101,7 +101,7 @@ int upio_set_bluetooth_power(int on);
 ** Returns         None
 **
 *******************************************************************************/
-void upio_set(uint8_t pio, uint8_t action);//void upio_set(uint8_t pio, uint8_t action, uint8_t polarity);
+void upio_set(uint8_t pio, uint8_t action, uint8_t polarity);
 
 
 /*******************************************************************************

@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- *  Copyright (C) 2009-2012 Realtek Corporation
+ *  Copyright (C) 2009-2018 Realtek Corporation.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -25,7 +25,7 @@
  ******************************************************************************/
 
 #define LOG_TAG "bt_service"
-#define RTKBT_RELEASE_NAME	"Test"
+#define RTKBT_RELEASE_NAME "20190520_BT_ANDROID_9.0"
 
 #include <utils/Log.h>
 #include <sys/types.h>
@@ -83,6 +83,7 @@ typedef void (*tTIMER_HANDLE_CBACK)(union sigval sigval_value);
 typedef struct Rtk_Btservice_Info
 {
     int socketfd;
+    int sig_fd[2];
     pthread_t       cmdreadythd;
     pthread_t       epollthd;
     int             current_client_sock;
@@ -127,7 +128,8 @@ typedef struct Rtk_Queue_Data
     void            (*complete_cback)(void *);
 }Rtkqueuedata;
 
-static Rtk_Btservice_Info *rtk_btservice;
+extern void rtk_vendor_cmd_to_fw(uint16_t opcode, uint8_t parameter_len, uint8_t* parameter, tINT_CMD_CBACK p_cback);
+static Rtk_Btservice_Info *rtk_btservice = NULL;
 static void Rtk_Service_Send_Hwerror_Event();
 //extern void userial_recv_rawdata_hook(unsigned char *, unsigned int);
 static timer_t OsAllocateTimer(tTIMER_HANDLE_CBACK timer_callback)
@@ -269,13 +271,12 @@ static int hcicmd_stop_reply_timer()
 static void Rtk_Client_Cmd_Cback(void *p_mem)
 {
     HC_BT_HDR *p_evt_buf = (HC_BT_HDR *) p_mem;
-    unsigned char *sendbuf=NULL;
+    unsigned char *sendbuf = NULL;
     int len;
-    //ALOGE("%s p_evt_buf = %x,%x,%x,%x,%x!", __func__,p_evt_buf->event,p_evt_buf->len,p_evt_buf->offset,p_evt_buf->layer_specific,p_evt_buf->data[0]);
-    len=8+p_evt_buf->len;
+
     if(p_evt_buf != NULL)
     {
-        sendbuf = (unsigned char *)malloc(sizeof(char)*len);
+        len = 8 + p_evt_buf->len;
         sendbuf = p_mem;
         if(rtk_btservice->current_client_sock != -1)
         {
@@ -285,18 +286,25 @@ static void Rtk_Client_Cmd_Cback(void *p_mem)
         {
             ALOGE("%s current_client_sock is not exist!", __func__);
         }
-        free(sendbuf);
     }
 }
 
 void Rtk_Service_Vendorcmd_Hook(Rtk_Service_Data *RtkData, int client_sock)
 {
     Rtkqueuedata* rtkqueue_data = NULL;
+    if(!rtk_btservice) {
+        ALOGE("rtkbt service is null");
+        return;
+    }
+
     pthread_mutex_lock(&rtk_btservice->cmdqueue_mutex);
     rtkqueue_data = (Rtkqueuedata *)malloc(sizeof(Rtkqueuedata));
     if (NULL == rtkqueue_data)
     {
         ALOGE("rtkqueue_data: allocate error");
+        if(RtkData->parameter_len > 0) {
+            free(RtkData->parameter);
+        }
         return;
     }
 
@@ -318,15 +326,15 @@ static void Rtk_Service_Cmd_Event_Cback(void *p_mem)
     //ALOGE("%s p_mem = %x,%x,%x,%x,%x,%x!", __func__,a[0],a[1],a[2],a[3],a[4],a[5]);
     if(p_mem != NULL)
     {
-        if(rtk_btservice->current_complete_cback!=NULL)
+        if(rtk_btservice->current_complete_cback != NULL)
         {
-            rtk_btservice->current_complete_cback(p_mem);
+            (*rtk_btservice->current_complete_cback)(p_mem);
         }
         else
         {
             ALOGE("%s current_complete_cback is not exist!", __func__);
         }
-        rtk_btservice->current_complete_cback=NULL;
+        rtk_btservice->current_complete_cback = NULL;
         hcicmd_stop_reply_timer();
         sem_post(&rtk_btservice->cmdsend_sem);
     }
@@ -334,17 +342,17 @@ static void Rtk_Service_Cmd_Event_Cback(void *p_mem)
 
 static void Rtk_Service_Send_Hwerror_Event()
 {
-    unsigned char *p_buf=(unsigned char *)malloc(sizeof(char)*4);
-    int length=4;
-    p_buf[0]=0x04;//event
-    p_buf[1]=0x10;//hardware error
-    p_buf[2]=0x01;//len
-    p_buf[3]=0xfd;//error code
+    unsigned char p_buf[4];
+    int length = 4;
+    p_buf[0] = 0x04;//event
+    p_buf[1] = 0x10;//hardware error
+    p_buf[2] = 0x01;//len
+    p_buf[3] = 0xfd;//rtkbtservice error code
     userial_recv_rawdata_hook(p_buf,length);
-    free(p_buf);
+
 }
 
-static void *cmdready_thread()
+static void* cmdready_thread()
 {
     //Rtkqueuedata* rtk_data;
 
@@ -369,42 +377,18 @@ static void *cmdready_thread()
             pthread_mutex_unlock(&rtk_btservice->cmdqueue_mutex);
 
             if(desc) {
-                HC_BT_HDR  *p_buf = NULL;
-                p_buf = (HC_BT_HDR *) bt_vendor_cbacks->alloc(BT_HC_HDR_SIZE + HCI_CMD_PREAMBLE_SIZE + desc->parameter_len);
-
-                if(NULL == p_buf)
-                {
-                    ALOGE("rtk_vendor_cmd_to_fw: HC_BT_HDR alloc error");
-                    pthread_exit(0);
-                }
-                p_buf->event = MSG_STACK_TO_HC_HCI_CMD;
-                p_buf->offset = 0;
-                p_buf->len = HCI_CMD_PREAMBLE_SIZE + desc->parameter_len;
-                p_buf->layer_specific = 0;
-
-                uint8_t *p = (uint8_t *) (p_buf + 1);
-                UINT16_TO_STREAM(p, desc->opcode);
-                *p++ = desc->parameter_len;
-
                 if(desc->opcode == 0xfc77)
                 {
                     rtk_btservice->autopair_fd = desc->client_sock;
                 }
 
-                if(desc->parameter_len > 0)
-                {
-                    memcpy(p, desc->parameter, desc->parameter_len);
-                }
-                if(desc->opcode != 0xfc94 )
+                if(desc->opcode != 0xfc94)
                     ALOGD("%s, transmit_command Opcode:%x",__func__, desc->opcode);
                 rtk_btservice->current_client_sock = desc->client_sock;
                 rtk_btservice->current_complete_cback = desc->complete_cback;
                 //bt_vendor_cbacks->xmit_cb(desc->opcode, p_buf, desc->complete_cback);
-                if(bt_vendor_cbacks != NULL)
-                {
-                    bt_vendor_cbacks->xmit_cb(desc->opcode, p_buf, Rtk_Service_Cmd_Event_Cback);
-                    hcicmd_start_reply_timer();
-                }
+                rtk_vendor_cmd_to_fw(desc->opcode, desc->parameter_len, desc->parameter, Rtk_Service_Cmd_Event_Cback);
+                hcicmd_start_reply_timer();
                 if(desc->parameter_len > 0)
                     free(desc->parameter);
             }
@@ -417,8 +401,6 @@ static void *cmdready_thread()
 
 static void Getpacket(int client_sock)
 {
-
-    //unsigned char recvbuf[Rtk_Service_Data_SIZE];
     unsigned char type=0;
     unsigned char opcodeh=0;
     unsigned char opcodel=0;
@@ -426,12 +408,10 @@ static void Getpacket(int client_sock)
     unsigned char *parameter = NULL;
     int recvlen=0;
     Rtk_Service_Data *p_buf;
-    //int i;
 
-
-    recvlen = read(client_sock,&type,1);
+    recvlen = read(client_sock, &type, 1);
     ALOGD("%s recvlen=%d,type=%d",__func__,recvlen, type);
-    if(recvlen<=0)
+    if(recvlen <= 0)
     {
         close(client_sock);
         if(client_sock == rtk_btservice->autopair_fd)
@@ -446,32 +426,37 @@ static void Getpacket(int client_sock)
         case RTK_HCICMD:
         {
             recvlen = read(client_sock,&opcodeh,1);
-            if(recvlen<=0)
+            if(recvlen <= 0)
             {
                 ALOGE("read opcode high char error");
                 break;
             }
             recvlen = read(client_sock,&opcodel,1);
-            if(recvlen<=0)
+            if(recvlen <= 0)
             {
                 ALOGE("read opcode low char error");
                 break;
             }
             recvlen = read(client_sock,&parameter_length,1);
-            if(recvlen<=0)
+            if(recvlen <= 0)
             {
                 ALOGE("read parameter_length char error");
                 break;
             }
 
-            if(parameter_length>0)
+            if(parameter_length > 0)
             {
                 parameter = (unsigned char *)malloc(sizeof(char)*parameter_length);
-                recvlen = read(client_sock,parameter,parameter_length);
+                if(!parameter) {
+                    ALOGE("%s parameter alloc fail!", __func__);
+                    return;
+                }
+                recvlen = read(client_sock, parameter, parameter_length);
                 ALOGD("%s parameter_length=%d,recvlen=%d",__func__,parameter_length, recvlen);
-                if(recvlen<=0 || recvlen!=parameter_length)
+                if(recvlen <= 0 || recvlen != parameter_length)
                 {
                     ALOGE("read parameter_length char error recvlen=%d,parameter_length=%d\n",recvlen,parameter_length);
+                    free(parameter);
                     break;
                 }
             }
@@ -479,19 +464,15 @@ static void Getpacket(int client_sock)
             if (NULL == p_buf)
             {
                 ALOGE("p_buf: allocate error");
+                if(parameter)
+                  free(parameter);
                 return;
             }
+
             p_buf->opcode = ((unsigned short)opcodeh)<<8 | opcodel;
             p_buf->parameter = parameter;
             p_buf->parameter_len = parameter_length;
             p_buf->complete_cback = Rtk_Client_Cmd_Cback;
-            //ALOGE("p_buf->parameter_len: %d",p_buf->parameter_len);
-            //ALOGE("p_buf->opcode: %x",p_buf->opcode);
-            //ALOGE("opcodeh: %x,opcodel: %x",opcodeh,opcodel);
-            //for(i=0;i<p_buf->parameter_len;i++)
-            //{
-            //    ALOGE("i=%d,p_buf->parameter: %x",i,p_buf->parameter[i]);
-            //}
             Rtk_Service_Vendorcmd_Hook(p_buf,client_sock);
             free(p_buf);
             break;
@@ -511,7 +492,7 @@ static void Getpacket(int client_sock)
 
 }
 
-void rtk_btservice_internal_event_intercept(uint8_t *p_full_msg,uint8_t *p_msg)
+void rtk_btservice_internal_event_intercept(uint8_t *p_full_msg, uint8_t *p_msg)
 {
     uint8_t *p = p_msg;
     uint8_t event_code = *p++;
@@ -531,18 +512,15 @@ void rtk_btservice_internal_event_intercept(uint8_t *p_full_msg,uint8_t *p_msg)
                 {
 
                     ALOGD("p_evt_buf_len=%d",p_evt_buf->len);
-                    //for(int i=0;i<p_evt_buf->len;i++)
-                      //ALOGE("@jason buf[%d]=0x%x",i,p_evt_buf->data[i]);
-                    //
                     if(rtk_btservice->autopair_fd != -1)
                     {
                         write(rtk_btservice->autopair_fd, p_evt_buf, p_evt_buf->len+8);
                         uint8_t p_bluedroid_len = p_evt_buf->len+1;
-                        uint8_t *p_bluedroid = malloc(p_bluedroid_len);
-                        p_bluedroid[0]=DATA_TYPE_EVENT;
+                        uint8_t p_bluedroid[p_bluedroid_len];
+                        p_bluedroid[0] = DATA_TYPE_EVENT;
                         memcpy((uint8_t *)(p_bluedroid + 1), p_msg, p_evt_buf->len);
-                        p_bluedroid[1]=0x3e;  //event_code
-                        p_bluedroid[3]=0x02;  //subcode
+                        p_bluedroid[1] = 0x3e;  //event_code
+                        p_bluedroid[3] = 0x02;  //subcode
                         userial_recv_rawdata_hook(p_bluedroid, p_bluedroid_len);
                     }
                 }
@@ -552,10 +530,6 @@ void rtk_btservice_internal_event_intercept(uint8_t *p_full_msg,uint8_t *p_msg)
             }
             break;
         }
-        //case HCI_COMMAND_COMPLETE_EVT:
-        //{
-            //rtkservice_handle_cmd_complete_evt();
-        //}
         default:
             break;
     }
@@ -566,7 +540,7 @@ static int socket_accept(socketfd)
 {
     struct sockaddr_un un;
     socklen_t len;
-    int client_sock=0;
+    int client_sock = 0;
     len = sizeof(un);
     struct epoll_event event;
 
@@ -578,10 +552,10 @@ static int socket_accept(socketfd)
     }
     //pthread_create(&connectthread,NULL,(void *)accept_request_thread,&client_sock);
 
-    event.data.fd=client_sock;
-    event.events=EPOLLIN | EPOLLHUP | EPOLLRDHUP | EPOLLERR;
+    event.data.fd = client_sock;
+    event.events = EPOLLIN | EPOLLHUP | EPOLLRDHUP | EPOLLERR;
     //list_add(client_sock);
-    if(epoll_ctl(rtk_btservice->epoll_fd,EPOLL_CTL_ADD,client_sock,&event)==-1)
+    if(epoll_ctl(rtk_btservice->epoll_fd, EPOLL_CTL_ADD, client_sock, &event)==-1)
     {
         ALOGE("%s unable to register fd %d to epoll set: %s", __func__, client_sock, strerror(errno));
         close(client_sock);
@@ -598,21 +572,26 @@ static void *epoll_thread()
 
     while(rtk_btservice->epoll_thread_running)
     {
-        nfds=epoll_wait(rtk_btservice->epoll_fd,events,32,500);
+        nfds = epoll_wait(rtk_btservice->epoll_fd,events, 32, 500);
         if(rtk_btservice->epoll_thread_running != 0)
         {
-            if(nfds>0)
+            if(nfds > 0)
             {
-                for(i=0;i<nfds;i++)
+                for(i = 0; i < nfds; i++)
                 {
-                    if(events[i].data.fd == rtk_btservice->socketfd && events[i].events&EPOLLIN)
+                    if(events[i].data.fd == rtk_btservice->sig_fd[1]) {
+                        ALOGE("epoll_thread , receive exit signal");
+                        continue;
+                    }
+
+                    if(events[i].data.fd == rtk_btservice->socketfd && events[i].events & EPOLLIN)
                     {
-                        if(socket_accept(events[i].data.fd)<0)
+                        if(socket_accept(events[i].data.fd) < 0)
                         {
                             pthread_exit(0);
                         }
                     }
-                    else if(events[i].events&(EPOLLIN | EPOLLHUP | EPOLLRDHUP | EPOLLERR))
+                    else if(events[i].events & (EPOLLIN | EPOLLHUP | EPOLLRDHUP | EPOLLERR))
                     {
                         ALOGD("%s events[i].data.fd = %d ", __func__, events[i].data.fd);
                         Getpacket(events[i].data.fd);
@@ -659,15 +638,29 @@ static int unix_socket_start(const char *servername)
         ALOGE("%s chmod failed");
     }
     */
-    event.data.fd=rtk_btservice->socketfd;
-    event.events=EPOLLIN;
-    if(epoll_ctl(rtk_btservice->epoll_fd,EPOLL_CTL_ADD,rtk_btservice->socketfd,&event)==-1)
+    event.data.fd = rtk_btservice->socketfd;
+    event.events = EPOLLIN;
+    if(epoll_ctl(rtk_btservice->epoll_fd, EPOLL_CTL_ADD, rtk_btservice->socketfd,&event) == -1)
     {
         ALOGE("%s unable to register fd %d to epoll set: %s", __func__, rtk_btservice->socketfd, strerror(errno));
         return -1;
     }
 
+    event.data.fd = rtk_btservice->sig_fd[1];
+    event.events = EPOLLIN;
+    if(epoll_ctl(rtk_btservice->epoll_fd, EPOLL_CTL_ADD, rtk_btservice->sig_fd[1], &event) == -1)
+    {
+        ALOGE("%s unable to register signal fd %d to epoll set: %s", __func__, rtk_btservice->sig_fd[1], strerror(errno));
+        return -1;
+    }
     return 0;
+}
+
+void RTK_btservice_send_close_signal(void)
+{
+    unsigned char close_signal = 1;
+    ssize_t ret;
+    RTK_NO_INTR(ret = write(rtk_btservice->sig_fd[0], &close_signal, 1));
 }
 
 int RTK_btservice_thread_start()
@@ -679,7 +672,7 @@ int RTK_btservice_thread_start()
         return -1;
     }
 
-    rtk_btservice->cmdqueue_thread_running=1;
+    rtk_btservice->cmdqueue_thread_running = 1;
     if (pthread_create(&rtk_btservice->cmdreadythd, NULL, cmdready_thread, NULL)!=0)
     {
         ALOGE("pthread_create cmdready_thread: %s", strerror(errno));
@@ -691,9 +684,9 @@ int RTK_btservice_thread_start()
 
 void RTK_btservice_thread_stop()
 {
-    ALOGD("%s !", __func__);
     rtk_btservice->epoll_thread_running=0;
     rtk_btservice->cmdqueue_thread_running=0;
+    RTK_btservice_send_close_signal();
     sem_post(&rtk_btservice->cmdqueue_sem);
     sem_post(&rtk_btservice->cmdsend_sem);
     pthread_join(rtk_btservice->cmdreadythd, NULL);
@@ -705,12 +698,17 @@ void RTK_btservice_thread_stop()
 int RTK_btservice_init()
 {
     int ret;
-    rtk_btservice=(Rtk_Btservice_Info *)malloc(sizeof(Rtk_Btservice_Info));
+    rtk_btservice = (Rtk_Btservice_Info *)malloc(sizeof(Rtk_Btservice_Info));
+    if(rtk_btservice)
+        memset(rtk_btservice, 0, sizeof(Rtk_Btservice_Info));
+    else {
+        ALOGE("%s, alloc fail", __func__);
+        return -1;
+    }
 
     rtk_btservice->current_client_sock = -1;
-    rtk_btservice->current_complete_cback=NULL;
+    rtk_btservice->current_complete_cback = NULL;
     rtk_btservice->autopair_fd = -1;
-    ALOGD("%s init start!", __func__);
     hcicmd_alloc_reply_timer();
 
     sem_init(&rtk_btservice->cmdqueue_sem, 0, 0);
@@ -722,6 +720,11 @@ int RTK_btservice_init()
     {
         ALOGE("%s bt_vendor_cbacks is NULL!", __func__);
         return -1;
+    }
+
+    if((ret = socketpair(AF_UNIX, SOCK_STREAM, 0, rtk_btservice->sig_fd)) < 0) {
+        ALOGE("%s, errno : %s", __func__, strerror(errno));
+        return ret;
     }
 
     rtk_btservice->epoll_fd = epoll_create(64);
@@ -737,7 +740,7 @@ int RTK_btservice_init()
     }
 
     ret = RTK_btservice_thread_start();
-    if(ret<0)
+    if(ret < 0)
     {
         ALOGE("%s RTK_btservice_thread_start fail!", __func__);
         return -1;
@@ -748,9 +751,13 @@ int RTK_btservice_init()
 
 void RTK_btservice_destroyed()
 {
-    ALOGD("%s destroyed start!", __func__);
+    if(!rtk_btservice)
+        return;
     RTK_btservice_thread_stop();
     close(rtk_btservice->socketfd);
+    rtk_btservice->socketfd = -1;
+    close(rtk_btservice->sig_fd[0]);
+    close(rtk_btservice->sig_fd[1]);
     sem_destroy(&rtk_btservice->cmdqueue_sem);
     sem_destroy(&rtk_btservice->cmdsend_sem);
     flush_cmdqueue_hash(rtk_btservice);
@@ -759,6 +766,7 @@ void RTK_btservice_destroyed()
     rtk_btservice->autopair_fd = -1;
     rtk_btservice->current_client_sock = -1;
     free(rtk_btservice);
+    rtk_btservice = NULL;
     ALOGD("%s destroyed done!", __func__);
 }
 

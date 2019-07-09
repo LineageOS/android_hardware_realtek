@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- *  Copyright (C) 2009-2012 Realtek Corporation
+ *  Copyright (C) 2009-2018 Realtek Corporation
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -26,7 +26,7 @@
 
 #undef NDEBUG
 #define LOG_TAG "libbt_vendor"
-#define RTKBT_RELEASE_NAME "20180702_BT_ANDROID_9.0"
+#define RTKBT_RELEASE_NAME "20190520_BT_ANDROID_9.0"
 #include <utils/Log.h>
 #include "bt_vendor_rtk.h"
 #include "upio.h"
@@ -282,6 +282,7 @@ static void load_rtkbt_conf()
         if (!split) {
         ALOGE("%s no key/value separator found on line %d.", __func__, line_num);
         strcpy(rtkbt_device_node,"/dev/rtkbt_dev");
+        fclose(fp);
         return;
       }
 
@@ -327,6 +328,20 @@ static void load_rtkbt_conf()
     }
     else {
         rtkbt_transtype |= RTKBT_TRANS_USB;
+        rtkbt_transtype |= RTKBT_TRANS_H4;
+    }
+}
+
+static void byte_reverse(unsigned char* data, int len)
+{
+    int i;
+    int tmp;
+
+    for(i = 0; i < len/2; i++) {
+        tmp = len - i - 1;
+        data[i] ^= data[tmp];
+        data[tmp] ^= data[i];
+        data[i] ^= data[tmp];
     }
 }
 
@@ -362,6 +377,7 @@ static int init(const bt_vendor_callbacks_t* p_cb, unsigned char *local_bdaddr)
 
     /* This is handed over from the stack */
     memcpy(vnd_local_bd_addr, local_bdaddr, 6);
+    byte_reverse(vnd_local_bd_addr, 6);
 
     if(rtk_btsnoop_dump)
         rtk_btsnoop_open();
@@ -411,8 +427,15 @@ static int op(bt_vendor_opcode_t opcode, void *param)
                     hw_config_start(rtkbt_transtype);
                 }
                 else {
-                  retval = userial_vendor_usb_ioctl(GET_USB_INFO, NULL);
-                  hw_usb_config_start(RTKBT_TRANS_H4,retval);
+                  int usb_info = 0;
+                  retval = userial_vendor_usb_ioctl(GET_USB_INFO, &usb_info);
+                  if(retval == -1) {
+                    ALOGE("get usb info fail");
+                    bt_vendor_cbacks->fwcfg_cb(BT_VND_OP_RESULT_FAIL);
+                    return retval;
+                  }
+                  else
+                    hw_usb_config_start(RTKBT_TRANS_H4, usb_info);
                 }
                 RTK_btservice_init();
             }

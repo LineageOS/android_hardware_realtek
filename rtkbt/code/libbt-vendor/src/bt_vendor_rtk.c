@@ -26,7 +26,7 @@
 
 #undef NDEBUG
 #define LOG_TAG "libbt_vendor"
-#define RTKBT_RELEASE_NAME "20190520_BT_ANDROID_9.0"
+#define RTKBT_RELEASE_NAME "20191111_BT_ANDROID_9.0"
 #include <utils/Log.h>
 #include "bt_vendor_rtk.h"
 #include "upio.h"
@@ -45,7 +45,6 @@ extern char rtk_btsnoop_path[];
 extern uint8_t coex_log_enable;
 extern void hw_config_start(char transtype);
 extern void hw_usb_config_start(char transtype,uint32_t val);
-extern void RTK_btservice_init();
 
 #if (HW_END_WITH_HCI_RESET == TRUE)
 void hw_epilog_process(void);
@@ -142,7 +141,10 @@ static int Scan_Usb_Devices_For_RTK(char* path){
         }
         /* Check if it is path. */
         if((filestat.st_mode & S_IFDIR) == S_IFDIR){
-            if(!Check_Key_Value(newpath,"idVendor",0x0bda))
+            if(!Check_Key_Value(newpath,"idVendor",0x0bda) && \
+                !Check_Key_Value(newpath,"idVendor",0x0b05) && \
+                !Check_Key_Value(newpath,"idVendor",0x04ca) && \
+                !Check_Key_Value(newpath,"idVendor",0x13d3))
                 continue;
             newpdir =opendir(newpath);
             /*read sub directory*/
@@ -437,7 +439,6 @@ static int op(bt_vendor_opcode_t opcode, void *param)
                   else
                     hw_usb_config_start(RTKBT_TRANS_H4, usb_info);
                 }
-                RTK_btservice_init();
             }
             break;
 
@@ -520,7 +521,12 @@ static int op(bt_vendor_opcode_t opcode, void *param)
 
         case BT_VND_OP_LPM_SET_MODE:
             {
-
+                bt_vendor_lpm_mode_t mode = *(bt_vendor_lpm_mode_t *) param;
+                //for now if the mode is BT_VND_LPM_DISABLE, we guess the hareware bt
+                //interface is closing, we shall not send any cmd to the interface.
+                if(mode == BT_VND_LPM_DISABLE) {
+                    userial_set_bt_interface_state(0);
+                }
             }
             break;
 

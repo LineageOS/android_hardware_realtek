@@ -83,7 +83,6 @@ void rtk_btsnoop_open()
     char last_log_path[PATH_MAX];
     uint64_t timestamp;
     uint32_t usec;
-    uint8_t sec,hour, minus,day;
 
     if (hci_btsnoop_fd != -1) {
       ALOGE("%s btsnoop log file is already open.", __func__);
@@ -91,20 +90,14 @@ void rtk_btsnoop_open()
     }
 
     if(rtk_btsnoop_save_log) {
+        time_t current_time = time(NULL);
+        struct tm* time_created = localtime(&current_time);
+        char config_time_created[sizeof("YYYY-MM-DD-HH:MM:SS")];
+        strftime(config_time_created, sizeof("YYYY-MM-DD-HH:MM:SS"), "%Y-%m-%d-%H:%M:%S",
+             time_created);
         timestamp = rtk_btsnoop_timestamp() - BTSNOOP_EPOCH_DELTA;
         usec = (uint32_t)(timestamp % 1000000LL);
-        timestamp /= 1000000LL;
-        sec = (uint8_t)(timestamp % 60LL);
-        timestamp /= 60LL;
-        minus = (uint8_t)(timestamp % 60LL);
-        timestamp /= 60LL;
-        hour = (uint8_t)(timestamp % 24LL);
-        timestamp /= 24LL;
-        day = (uint8_t)(timestamp % 30LL);
-        timestamp /= 30LL;
-        //snprintf(last_log_path, PATH_MAX, "%s.%llu", rtk_btsnoop_path, rtk_btsnoop_timestamp());
-        snprintf(last_log_path, PATH_MAX, "%s.%uY-%dD-%dH-%dM-%dS-%dUS", rtk_btsnoop_path,
-          (uint32_t)timestamp, day, hour, minus, sec, usec);
+        snprintf(last_log_path, PATH_MAX, "%s.%s:%dUS", rtk_btsnoop_path, config_time_created, usec);
         if (!rename(rtk_btsnoop_path, last_log_path) && errno != ENOENT)
             ALOGE("%s unable to rename '%s' to '%s': %s", __func__, rtk_btsnoop_path, last_log_path, strerror(errno));
     }

@@ -17,7 +17,7 @@
  ******************************************************************************/
 
 #define LOG_TAG "bt_hwcfg_uart"
-#define RTKBT_RELEASE_NAME "20190520_BT_ANDROID_9.0"
+#define RTKBT_RELEASE_NAME "20191111_BT_ANDROID_9.0"
 
 #include <utils/Log.h>
 #include <sys/types.h>
@@ -109,7 +109,8 @@ static patch_info patch_table[] = {
     {0x8821,            HCI_VERSION_MASK_ALL,    ~(1<<0xc),             CHIP_TYPE_MASK_ALL,  1<<2,                  "rtl8821as_fw",         "rtl8821as_config",     CONFIG_MAC_OFFSET_GEN_1_2,  MAX_PATCH_SIZE_24K},     //Rtl8821AS
 //  {0x8761,            HCI_VERSION_MASK_ALL,    HCI_REVISION_MASK_ALL, CHIP_TYPE_MASK_ALL,  1<<3,                  "rtl8761at_fw",         "rtl8761at_config",     CONFIG_MAC_OFFSET_GEN_1_2,  MAX_PATCH_SIZE_24K},     //Rtl8761AW
     {0x8761,            HCI_VERSION_MASK_ALL,    ~(1<<0xb),             CHIP_TYPE_MASK_ALL,  1<<3,                  "rtl8761at_fw",         "rtl8761at_config",     CONFIG_MAC_OFFSET_GEN_1_2,  MAX_PATCH_SIZE_24K},     //Rtl8761AW
-    {0x8761,            HCI_VERSION_MASK_ALL,    (1<<0xb),              CHIP_TYPE_MASK_ALL,  1<<14,                 "rtl8761bt_fw",         "rtl8761bt_config",     CONFIG_MAC_OFFSET_GEN_4PLUS,  MAX_PATCH_SIZE_40K},     //Rtl8761BW
+    {0x8761,            HCI_VERSION_MASK_ALL,    (1<<0xb),              1<<0,                1<<14,                 "rtl8761bt_fw",         "rtl8761bt_config",     CONFIG_MAC_OFFSET_GEN_4PLUS,  MAX_PATCH_SIZE_40K},   //Rtl8761BW
+    {0x8761,            HCI_VERSION_MASK_ALL,    (1<<0xb),              1<<5,                1<<14,                 "rtl8725as_fw",         "rtl8725as_config",     CONFIG_MAC_OFFSET_GEN_4PLUS,  MAX_PATCH_SIZE_40K},   //Rtl8725AS
 
     {0x8723,            HCI_VERSION_MASK_21,     HCI_REVISION_MASK_ALL, CHIP_TYPE_MASK_ALL,  1<<4,                  "rtl8703as_fw",         "rtl8703as_config",     CONFIG_MAC_OFFSET_GEN_1_2,  MAX_PATCH_SIZE_24K},     //Rtl8703AS
 
@@ -1099,8 +1100,13 @@ void hw_config_cback(void *p_mem)
                      p = (uint8_t *) (p_buf + 1);
                     UINT16_TO_STREAM(p, HCI_VSC_READ_CHIP_TYPE);
                     *p++ = 5;
-                    UINT8_TO_STREAM(p, 0x00);
-                    UINT32_TO_STREAM(p, 0xB000A094);
+                    if(hw_cfg_cb.lmp_subversion == 0x8761){
+                        UINT8_TO_STREAM(p, 0x20);
+                        UINT32_TO_STREAM(p, 0xB000A0A4);
+                    }else{
+                        UINT8_TO_STREAM(p, 0x00);
+                        UINT32_TO_STREAM(p, 0xB000A094);
+                    }
                     p_buf->len = HCI_CMD_PREAMBLE_SIZE + HCI_CMD_READ_CHIP_TYPE_SIZE;
 
                     pp = (uint8_t *) (p_buf + 1);
@@ -1129,7 +1135,10 @@ void hw_config_cback(void *p_mem)
                     BTVNDDBG("READ_CHIP_TYPE event data[%d]= 0x%x", i, *(p+i));
                 if(status == 0)
                 {
-                    hw_cfg_cb.chip_type = ((*((uint8_t *)(p_evt_buf + 1) + HCI_EVT_CMD_CMPL_OPFC61_CHIPTYPE_OFFSET))&0x0F);
+                    if(hw_cfg_cb.lmp_subversion == 0x8761)
+                        hw_cfg_cb.chip_type = ((*((uint8_t *)(p_evt_buf + 1) + HCI_EVT_CMD_CMPL_OPFC61_8761_CHIPTYPE_OFFSET))&0x0F);
+                    else
+                        hw_cfg_cb.chip_type = ((*((uint8_t *)(p_evt_buf + 1) + HCI_EVT_CMD_CMPL_OPFC61_CHIPTYPE_OFFSET))&0x0F);
                     BTVNDDBG("READ_CHIP_TYPE hw_cfg_cb.lmp_subversion = 0x%x", hw_cfg_cb.lmp_subversion);
                     BTVNDDBG("READ_CHIP_TYPE hw_cfg_cb.hci_version = 0x%x", hw_cfg_cb.hci_version);
                     BTVNDDBG("READ_CHIP_TYPE hw_cfg_cb.hci_revision = 0x%x", hw_cfg_cb.hci_revision);

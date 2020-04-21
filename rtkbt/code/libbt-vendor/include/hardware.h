@@ -33,8 +33,8 @@
 #error "Unknown byte order"
 #endif
 
-#define FIRMWARE_DIRECTORY  "/vendor//etc/firmware/%s"
-#define BT_CONFIG_DIRECTORY "/vendor/etc/firmware/%s"
+#define FIRMWARE_DIRECTORY  "/vendor/firmware/%s"
+#define BT_CONFIG_DIRECTORY "/vendor/firmware/%s"
 #define PATCH_DATA_FIELD_MAX_SIZE       252
 #define RTK_VENDOR_CONFIG_MAGIC         0x8723ab55
 #define MAX_PATCH_SIZE_24K            (1024*24)   //24K
@@ -94,6 +94,7 @@ struct rtk_bt_vendor_config{
 #define HCI_EVT_CMD_CMPL_OP1009_BDADDR_OFFSET    (6)     //BD_ADDR's offset in COMMAND Completed Event for OpCode 0x1009(Read BD_ADDR Command)
 #define HCI_EVT_CMD_CMPL_OPFC6D_EVERSION_OFFSET        (6)  //eversion's offset in COMMAND Completed Event for OpCode 0xfc6d(Read eVERSION Vendor Command)
 #define HCI_EVT_CMD_CMPL_OPFC61_CHIPTYPE_OFFSET        (6)  //chip type's offset in COMMAND Completed Event for OpCode 0xfc61(Read ChipType Vendor Command)
+#define HCI_EVT_CMD_CMPL_OPFC61_8761_CHIPTYPE_OFFSET   (8)  //8761B chip type's offset in COMMAND Completed Event for OpCode 0xfc61(Read ChipType Vendor Command)
 
 //#define UPDATE_BAUDRATE_CMD_PARAM_SIZE          (6)
 #define HCI_CMD_PREAMBLE_SIZE                   (3)

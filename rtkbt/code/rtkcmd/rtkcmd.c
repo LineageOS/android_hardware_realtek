@@ -1,3 +1,20 @@
+/******************************************************************************
+ *
+ *  Copyright (C) 2009-2018 Realtek Corporation.
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at:
+ *
+ *  http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ *
+ ******************************************************************************/
 #include <stdio.h>
 #include <getopt.h>
 #include <string.h>
@@ -16,8 +33,8 @@
 typedef struct Rtk_Socket_Data
 {
     unsigned char           type;      //hci,other,inner
-    unsigned char           opcodeh;
     unsigned char           opcodel;
+    unsigned char           opcodeh;
     unsigned char           parameter_len;
     unsigned char           parameter[0];
 }Rtk_Socket_Data;
@@ -115,43 +132,43 @@ int Rtkbt_Sendcmd(int socketfd,char *p)
 
 int Rtkbt_Getevent(int sock_fd)
 {
-    unsigned short event=0;
-    unsigned short event_len=0;
-    unsigned short offset=0;
-    unsigned short layer_specific=0;
+    unsigned char type = 0;
+    unsigned char event = 0;
+    unsigned char len = 0;
     unsigned char *recvbuf = NULL;
+    unsigned char tot_len = 0;
     int ret=0;
     int i;
 
-    ret = read(sock_fd,&event,2);
+    ret = read(sock_fd, &type, 1);
     if(ret<=0)
         return -1;
     //printf("event = %x\n",event);
 
-    ret = read(sock_fd,&event_len,2);
+    ret = read(sock_fd, &event, 1);
     if(ret<=0)
         return -1;
     //printf("event_len = %x\n",event_len);
 
-    ret = read(sock_fd,&offset,2);
+    ret = read(sock_fd, &len, 1);
     if(ret<=0)
         return -1;
     //printf("offset = %x\n",offset);
 
-    ret = read(sock_fd,&layer_specific,2);
-    if(ret<=0)
-        return -1;
+    tot_len = len + 2;
     //printf("layer_specific = %x\n",layer_specific);
 
-    recvbuf=(unsigned char *)malloc(sizeof(char)*event_len);
-    ret = read(sock_fd,recvbuf,event_len);
-    if(ret < event_len)
+    recvbuf=(unsigned char *)malloc(sizeof(char)*tot_len);
+    recvbuf[0] = event;
+    recvbuf[1] = len;
+    ret = read(sock_fd,recvbuf+2,len);
+    if(ret < len)
         return -1;
 
     printf("Event: ");
-    for(i=0;i<event_len-1;i++)
+    for(i=0;i<tot_len-1;i++)
         printf("0x%02x ",recvbuf[i]);
-    printf("0x%02x\n",recvbuf[event_len-1]);
+    printf("0x%02x\n",recvbuf[tot_len-1]);
 
     free(recvbuf);
     return 0;

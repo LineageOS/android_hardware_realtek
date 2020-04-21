@@ -200,7 +200,9 @@ int userial_vendor_usb_open(void);
 
 void userial_recv_rawdata_hook(unsigned char *buffer, unsigned int total_length);
 
+void userial_set_bt_interface_state(int bt_on);
 #define RTK_HANDLE_EVENT
 #define RTK_HANDLE_CMD
 //#define CONFIG_SCO_OVER_HCI
+//#define CONFIG_SCO_MSBC_PLC
 #endif /* USERIAL_VENDOR_H */

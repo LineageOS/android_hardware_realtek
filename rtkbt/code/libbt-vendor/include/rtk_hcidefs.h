@@ -2679,6 +2679,15 @@ typedef struct
 
 #define EVENT_DATA_LENGTH_INDEX 2
 
+#define USERIAL_HWERR_CODE_RTK    0xfa
+#define H5_HWERR_CODE_RTK         0xfb
+#define HEARTBEAT_HWERR_CODE_RTK  0xfc
+#define RTKSERVICE_HWERR_CODE_RTK  0xfd
+
+#define HCI_CMD_VNDR_HEARTBEAT      0xfc94
+#define HCI_CMD_VNDR_AUTOPAIR       0xfc77
+
+
 typedef struct {
   uint8_t hci_version;
   uint16_t hci_revision;

@@ -34,7 +34,7 @@
 *
 ******************************************************************************/
 #define LOG_TAG "rtk_parse"
-#define RTKBT_RELEASE_NAME "20190520_BT_ANDROID_9.0"
+#define RTKBT_RELEASE_NAME "20191111_BT_ANDROID_9.0"
 
 #include <utils/Log.h>
 #include <stdlib.h>
@@ -844,9 +844,13 @@ static void rtk_cmd_complete_cback(void *p_mem)
         bt_vendor_cbacks->dealloc(p_mem);
 
     if(desc) {
-        ALOGE("%s, transmit_command Opcode:%x",__func__, desc->opcode);
-        rtk_prof.current_cback = desc->p_cback;
-        bt_vendor_cbacks->xmit_cb(desc->opcode, desc->p_buf, rtk_cmd_complete_cback);
+        pthread_mutex_lock(&rtk_prof.coex_mutex);
+        if(rtk_prof.bt_on) {
+          ALOGE("%s, transmit_command Opcode:%x",__func__, desc->opcode);
+          rtk_prof.current_cback = desc->p_cback;
+          bt_vendor_cbacks->xmit_cb(desc->opcode, desc->p_buf, rtk_cmd_complete_cback);
+        }
+        pthread_mutex_unlock(&rtk_prof.coex_mutex);
     }
 
     free(desc);
@@ -886,6 +890,10 @@ void rtk_vendor_cmd_to_fw(uint16_t opcode, uint8_t parameter_len, uint8_t* param
     if(bt_vendor_cbacks)
     {
         pthread_mutex_lock(&rtk_prof.coex_mutex);
+        if(!rtk_prof.bt_on) {
+          pthread_mutex_unlock(&rtk_prof.coex_mutex);
+          return;
+        }
         if(!coex_cmd_send) {
             coex_cmd_send = true;
             RtkLogMsg("begin transmit_command Opcode:%x",opcode);
@@ -2958,7 +2966,11 @@ void rtk_add_le_data_count(uint8_t data_type)
 
 void rtk_set_bt_on(uint8_t bt_on) {
     RtkLogMsg("bt stack is init");
+    pthread_mutex_lock(&rtk_prof.coex_mutex);
     rtk_prof.bt_on = bt_on;
+    pthread_mutex_unlock(&rtk_prof.coex_mutex);
+    if(!bt_on)
+      return;
     uint8_t ttmp[1] = {1};
     rtk_vendor_cmd_to_fw(0xfc1b, 1, ttmp, NULL);
 }

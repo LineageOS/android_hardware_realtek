@@ -1,43 +1,54 @@
-# RELEASE NAME: 20180702_BT_ANDROID_9.0
+# RELEASE NAME: 20191111_BT_ANDROID_9.0
 # RTKBT_API_VERSION=2.1.1.0
 
 CUR_PATH := hardware/realtek/rtkbt
 
 BOARD_HAVE_BLUETOOTH := true
 BOARD_HAVE_BLUETOOTH_RTK := true
-BOARD_HAVE_BLUETOOTH_RTK_COEX := true
+BOARD_HAVE_BLUETOOTH_RTK_TV := false
 
-ifneq ($(filter atv box, $(strip $(TARGET_BOARD_PLATFORM_PRODUCT))), )
+ifeq ($(BOARD_HAVE_BLUETOOTH_RTK_TV), true)
+#Firmware For Tv
+include $(CUR_PATH)/Firmware/TV/TV_Firmware.mk
+else
+#Firmware For Tablet
+include $(CUR_PATH)/Firmware/BT/BT_Firmware.mk
+endif
+
 BOARD_BLUETOOTH_BDROID_BUILDCFG_INCLUDE_DIR := $(CUR_PATH)/bluetooth
-endif
-ifneq ($(filter rk3328, $(strip $(TARGET_BOARD_PLATFORM))), )
-PRODUCT_COPY_FILES += \
-        $(CUR_PATH)/vendor/etc/bluetooth/rtkbt_S0.conf:vendor/etc/bluetooth/rtkbt.conf
 
-else
 PRODUCT_COPY_FILES += \
-	$(CUR_PATH)/vendor/etc/bluetooth/rtkbt.conf:vendor/etc/bluetooth/rtkbt.conf
+       $(CUR_PATH)/vendor/etc/bluetooth/rtkbt.conf:vendor/etc/bluetooth/rtkbt.conf \
+       $(CUR_PATH)/system/etc/permissions/android.hardware.bluetooth_le.xml:system/etc/permissions/android.hardware.bluetooth_le.xml \
+       $(CUR_PATH)/system/etc/permissions/android.hardware.bluetooth.xml:system/etc/permissions/android.hardware.bluetooth.xml \
 
-endif
-
-ifeq ($(strip $(TARGET_BOARD_PLATFORM_PRODUCT)), tablet)
-BT_FIRMWARE_FILES := $(shell ls $(CUR_PATH)/vendor/firmware)
+ifeq ($(BOARD_HAVE_BLUETOOTH_RTK_TV), true)
 PRODUCT_COPY_FILES += \
-	$(foreach file, $(BT_FIRMWARE_FILES), $(CUR_PATH)/vendor/firmware/$(file):$(TARGET_COPY_OUT_VENDOR)/etc/firmware/$(file))
-else
-BT_FIRMWARE_FILES := $(shell ls $(CUR_PATH)/vendor/firmware_box)
-PRODUCT_COPY_FILES += \
-	$(foreach file, $(BT_FIRMWARE_FILES), $(CUR_PATH)/vendor/firmware_box/$(file):$(TARGET_COPY_OUT_VENDOR)/etc/firmware/$(file))
+        $(CUR_PATH)/vendor/usr/keylayout/Vendor_005d_Product_0001.kl:vendor/usr/keylayout/Vendor_005d_Product_0001.kl \
+        $(CUR_PATH)/vendor/usr/keylayout/Vendor_005d_Product_0002.kl:vendor/usr/keylayout/Vendor_005d_Product_0002.kl
 endif
 
+# base bluetooth
 PRODUCT_PACKAGES += \
-	libbt-vendor-realtek
+    Bluetooth \
+    libbt-vendor-realtek \
+    rtkcmd \
+    audio.a2dp.default \
+    bluetooth.default \
+    android.hardware.bluetooth@1.0-impl \
+    android.hidl.memory@1.0-impl \
+    android.hardware.bluetooth@1.0-service \
+    android.hardware.bluetooth@1.0-service.rc \
+
 
 PRODUCT_PROPERTY_OVERRIDES += \
-	persist.bluetooth.btsnoopenable=false \
-	persist.bluetooth.btsnooppath=/sdcard/btsnoop_hci.cfa \
-	persist.bluetooth.btsnoopsize=0xffff \
-	persist.bluetooth.rtkcoex=true \
-	bluetooth.enable_timeout_ms=11000
+                    persist.vendor.bluetooth.rtkcoex=true \
+                    persist.vendor.rtkbt.bdaddr_path=none \
+                    persist.vendor.bluetooth.prefferedrole=master \
+                    persist.vendor.rtkbtadvdisable=false
 
-
+PRODUCT_SYSTEM_DEFAULT_PROPERTIES += persist.bluetooth.btsnoopenable=false \
+                    persist.bluetooth.btsnooppath=/data/misc/bluedroid/btsnoop_hci.cfa \
+                    persist.bluetooth.btsnoopsize=0xffff \
+                    persist.bluetooth.showdeviceswithoutnames=false \
+                    vendor.bluetooth.enable_timeout_ms=11000

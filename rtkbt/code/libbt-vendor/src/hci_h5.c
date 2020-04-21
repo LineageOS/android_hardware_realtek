@@ -61,7 +61,6 @@
 ******************************************************************************/
 #define H5_TRACE_DATA_ENABLE 0//if you want to see data tx and rx, set H5_TRACE_DATA_ENABLE 1
 #define H5_LOG_VERBOSE      0
-#define ENABLE_BLE_8703 1
 
 unsigned int h5_log_enable = 1;
 
@@ -79,21 +78,15 @@ unsigned int h5_log_enable = 1;
 
 #define DATA_RETRANS_COUNT  40  //40*100 = 4000ms(4s)
 #define BT_INIT_DATA_RETRANS_COUNT  200  //200*20 = 4000ms(4s)
-//#define SYNC_RETRANS_COUNT  14  //14*250 = 3500ms(3.5s)
 #define SYNC_RETRANS_COUNT  350  //350*10 = 3500ms(3.5s)
-//#define CONF_RETRANS_COUNT  14
 #define CONF_RETRANS_COUNT  350
 
 
 
 #define DATA_RETRANS_TIMEOUT_VALUE  100 //ms
 #define BT_INIT_DATA_RETRANS_TIMEOUT_VALUE  20 //ms
-//#define SYNC_RETRANS_TIMEOUT_VALUE   250
 #define SYNC_RETRANS_TIMEOUT_VALUE   10
-
-//#define CONF_RETRANS_TIMEOUT_VALUE   250
 #define CONF_RETRANS_TIMEOUT_VALUE   20
-//#define WAIT_CT_BAUDRATE_READY_TIMEOUT_VALUE   250
 #define WAIT_CT_BAUDRATE_READY_TIMEOUT_VALUE   5
 #define H5_HW_INIT_READY_TIMEOUT_VALUE   4000//4
 
@@ -149,15 +142,6 @@ unsigned int h5_log_enable = 1;
 /******************************************************************************
 **  Local type definitions
 ******************************************************************************/
-//
-//static const uint16_t msg_evt_table[] =
-//{
-//    MSG_HC_TO_STACK_HCI_ERR,       /* H4_TYPE_COMMAND */
-//   MSG_HC_TO_STACK_HCI_ACL,       /* H4_TYPE_ACL_DATA */
-//    MSG_HC_TO_STACK_HCI_SCO,       /* H4_TYPE_SCO_DATA */
-//    MSG_HC_TO_STACK_HCI_EVT        /* H4_TYPE_EVENT */
-//};
-
 /* Callback function for the returned event of internal issued command */
 typedef void (*tTIMER_HANDLE_CBACK)(union sigval sigval_value);
 
@@ -286,7 +270,6 @@ struct patch_struct {
     int nRxIndex;   // ack index from board
     int nNeedRetry; // if no response from board
 };
-//static struct patch_struct rtk_patch;
 
 /******************************************************************************
 **  Static function
@@ -401,7 +384,7 @@ static void H5LogMsg(const char *fmt_str, ...)
 static void rtkbt_h5_send_hw_error()
 {
     unsigned char p_buf[100];
-    const char *str = "host stack: h5 send error";
+    const char *str = "host stack: h5 send error\n";
     int length = strlen(str) + 1 + 4;
     p_buf[0] = HCIT_TYPE_EVENT;//event
     p_buf[1] = HCI_VSE_SUBCODE_DEBUG_INFO_SUB_EVT;//firmwre event log
@@ -414,7 +397,7 @@ static void rtkbt_h5_send_hw_error()
     p_buf[0] = HCIT_TYPE_EVENT;//event
     p_buf[1] = HCI_HARDWARE_ERROR_EVT;//hardware error
     p_buf[2] = 0x01;//len
-    p_buf[3] = 0xfb;//h5 error code
+    p_buf[3] = H5_HWERR_CODE_RTK;//h5 error code
     userial_recv_rawdata_hook(p_buf,length);
 }
 
@@ -596,17 +579,6 @@ static void h5_crc_update(uint16_t *crc, uint8_t d)
 }
 
 struct __una_u16 { uint16_t x; };
-/*static __inline uint16_t __get_unaligned_cpu16(const void *p)
-{
-    const struct __una_u16 *ptr = (const struct __una_u16 *)p;
-    return ptr->x;
-}*/
-
-/*
-static __inline uint16_t get_unaligned_be16(const void *p)
-{
-    return __get_unaligned_cpu16((const uint8_t *)p);
-}*/
 /**
 * Get crc data.
 *
@@ -806,7 +778,7 @@ static sk_buff * h5_prepare_pkt(tHCI_H5_CB *h5, uint8_t *data, signed long len, 
     rel = H5_UNRELIABLE_PKT;// unreliable
     break;
     default:
-    ALOGE("Unknown packet type");
+        ALOGE("Unknown packet type");
     return NULL;
     }
 
@@ -943,65 +915,6 @@ static void h5_remove_acked_pkt(tHCI_H5_CB *h5)
 
 }
 
-/**
-* Realtek send pure ack, send a packet only with an ack
-*
-* @param fd uart file descriptor
-*
-*/
-/*
-static void hci_h5_send_pure_ack(void)
-{
-    //uint16_t bytes_sent = 0;
-    sk_buff * skb = NULL;
-    uint8_t ack_data = 0;
-
-    skb = skb_alloc_and_init(H5_ACK_PKT, &ack_data, 0);
-    if(!skb) {
-        ALOGE("skb_alloc_and_init fail!");
-        return;
-    }
-
-    H5LogMsg("H5: --->>>send pure ack");
-    h5_enqueue(skb);
-    h5_wake_up();
-
-#if 0
-    sk_buff *nskb = h5_prepare_pkt(&rtk_h5, NULL, 0, H5_ACK_PKT);
-    if(nskb == NULL)
-    {
-        ALOGE("h5_prepare_pkt allocate memory fail");
-        return;
-    }
-    H5LogMsg("H5: --->>>send pure ack");
-    uint8_t * data = skb_get_data(nskb);
-
-#if H5_TRACE_DATA_ENABLE
-    {
-        uint32_t iTemp = 0;
-        uint32_t iTempTotal = 16;
-
-        H5LogMsg("H5 TX: length(%d)", skb_get_data_length(nskb));
-        if(iTempTotal > skb_get_data_length(nskb))
-        {
-            iTempTotal = skb_get_data_length(nskb);
-        }
-
-        for(iTemp = 0; iTemp < iTempTotal; iTemp++)
-        {
-            H5LogMsg("0x%x", data[iTemp]);
-        }
-    }
-#endif
-
-    bytes_sent = h5_int_hal_callbacks->h5_int_transmit_data_cb(DATA_TYPE_H5, data, skb_get_data_length(nskb));
-    H5LogMsg("bytes_sent(%d)", bytes_sent);
-
-    skb_free(&nskb);
-#endif
-    return;
-
-}*/
 
 static void hci_h5_send_sync_req()
 {
@@ -1218,32 +1131,7 @@ static void rtk_notify_hw_h5_init_result(uint8_t status)
     pthread_cond_signal(&rtk_h5.data_cond);
     pthread_mutex_unlock(&rtk_h5.data_mutex);
 }
-static uint8_t *acl_pack = NULL;
-static uint32_t acl_len=0;
-static uint8_t loopbackmode = 0x00;
 
-static timer_t loopacltimer=0;
-
-static void loop_acl_cb()
-{
-    sk_buff     *rx_skb;
-    rx_skb = skb_alloc_and_init(HCI_ACLDATA_PKT, acl_pack, acl_len);
-
-    pthread_mutex_lock(&rtk_h5.data_mutex);
-    skb_queue_tail(rtk_h5.recv_data, rx_skb);
-    pthread_cond_signal(&rtk_h5.data_cond);
-    pthread_mutex_unlock(&rtk_h5.data_mutex);
-}
-static void loopacl_timer_handler()
-{
-    loop_acl_cb();
-}
-static void start_loopacktimer()
-{
-    if(loopacltimer == 0)
-        loopacltimer = OsAllocateTimer(loopacl_timer_handler);
-    OsStartTimer(loopacltimer, 10, 0);
-}
 
 static sk_buff * h5_dequeue()
 {
@@ -1381,10 +1269,8 @@ static uint16_t h5_wake_up()
 void h5_process_ctl_pkts(void)
 {
     //process h5 link establish
-    //int len;
     uint8_t cfg;
 
-    //tHCI_H5_CB *p_cb = &rtk_h5;
     sk_buff * skb = rtk_h5.rx_skb;
 
     unsigned char   h5sync[2]     = {0x01, 0x7E},
@@ -1494,52 +1380,10 @@ uint8_t isRtkInternalCommand(uint16_t opcode)
 *
 * @param skb socket buffer
 *
-*/
-extern uint16_t getLmp_subversion();
-extern uint8_t getchip_type();
-
-
-#if  ENABLE_BLE_8703
-
-const uint8_t le_white_list_size_pack[7]={0x0e, 0x05, 0x02, 0x0f, 0x20, 0x00, 0x20};
-const uint8_t le_buf_size_pack[9]={0x0e, 0x07, 0x02, 0x02, 0x20, 0x00, 0x1b, 0x00, 0x10};
-const uint8_t le_support_state_pack[14]={0x0e,0x0c,0x02,0x1c,0x20,0x00,0xff,0xff,0xff,0xff,0x00,0x00,0x00,0x00};
-const uint8_t le_local_support_pack[14]={0x0e,0x0c,0x02,0x03,0x20,0x00,0x00,0x01,0x00,0x00,0x00,0x00,0x00,0x00};
-const uint8_t le_set_event_pack[6]={0x0e, 0x04, 0x02, 0x01, 0x20, 0x00};
-const uint8_t le_set_rand[14]={0x0e, 0x0c, 0x02, 0x18, 0x20, 0x00, 0x3c, 0x4d, 0x17, 0x9a, 0x9e, 0xa6, 0x0b, 0x4d};
-
-static void send_fake_le_pack(uint8_t *pack,uint32_t len){
-	sk_buff 	*rx_skb;
-	rx_skb = skb_alloc_and_init(HCI_EVENT_PKT, pack, len);
-
-	pthread_mutex_lock(&rtk_h5.data_mutex);
-	skb_queue_tail(rtk_h5.recv_data, rx_skb);
-	pthread_cond_signal(&rtk_h5.data_cond);
-	pthread_mutex_unlock(&rtk_h5.data_mutex);
-}
-
-
-static uint16_t encHandle = 0x0000;
-
-static void send_fake_enc_keysize(uint16_t handle,uint8_t keysize){
-	sk_buff 	*rx_skb;
-	uint8_t pack[9]={0x0e, 0x07, 0x01, 0x08, 0x14, 0x00, 0x03, 0x00, 0x10};
-	pack[6]=(uint8_t)handle;pack[7]=(uint8_t)(handle>>8);
-	pack[8] = keysize;
-	rx_skb = skb_alloc_and_init(HCI_EVENT_PKT, pack, 9);
-
-	pthread_mutex_lock(&rtk_h5.data_mutex);
-	skb_queue_tail(rtk_h5.recv_data, rx_skb);
-	pthread_cond_signal(&rtk_h5.data_cond);
-	pthread_mutex_unlock(&rtk_h5.data_mutex);
-}
-
-
-#endif
+******************************************************************************/
 static uint8_t hci_recv_frame(sk_buff *skb, uint8_t pkt_type)
 {
     uint8_t intercepted = 0;
-    //uint32_t i = 0 ;
 #if H5_TRACE_DATA_ENABLE
     uint8_t *data = skb_get_data(skb);
 #endif
@@ -1573,76 +1417,6 @@ static uint8_t hci_recv_frame(sk_buff *skb, uint8_t pkt_type)
         event_code = *p++;
         len = *p++;
         H5LogMsg("hci_recv_frame event_code(0x%x), len = %d", event_code, len);
-        if(event_code == HCI_COMMAND_STATUS_EVT && len==0x04
-		    && p[0]==0x01 && p[1]==0x02 && p[2]==0xff && p[3]==0x3b){
-            *( p-2) = HCI_COMMAND_COMPLETE_EVT;
-            p[0]=0x02;p[1]=0xff;p[2]=0x3b;p[3]=0x01;
-        }// fix HciUnknownCommand test fail
-#if  ENABLE_BLE_8703
-        if(getLmp_subversion() == 0x8703 && getchip_type()==0x07)
-        {
-            if(event_code == HCI_COMMAND_COMPLETE_EVT
-               && len==0x0c && p[0]==0x02 && p[1]==0x01 && p[2]==0x10){
-                p[4]=0x05;
-                p[7]=0x05;
-            }
-            if(event_code == HCI_COMMAND_COMPLETE_EVT
-               && len==0x44 && p[0]==0x02 && p[1]==0x02 && p[2]==0x10){
-                p[24]|=0x10;
-            }
-            if(event_code == HCI_COMMAND_COMPLETE_EVT && len==0x0e && p[0]==0x02 && p[1]==0x04 && p[2]==0x10 ){
-                if(p[4]==0x00)
-                    p[10]|=0x40;
-                if(p[4]==0x01)
-                    p[6]|=0x02;
-            }
-            if(event_code == HCI_COMMAND_COMPLETE_EVT && len==0x04 &&  p[1]==0x08 &&p[2]==0x14){
-                skb_free(&skb);
-                intercepted = 1;
-                send_fake_enc_keysize(encHandle,0x10);
-            }
-            if(event_code == HCI_COMMAND_STATUS_EVT && len==0x04 && p[0]==0x01 && p[1]==0x02 && p[2]==0x0f &&p[3]==0x20){
-                skb_free(&skb);
-                intercepted = 1;
-                send_fake_le_pack((uint8_t *)le_white_list_size_pack,7);
-            }
-            else if(event_code == HCI_COMMAND_STATUS_EVT && len==0x04 && p[0]==0x01 && p[1]==0x02 && p[2]==0x02 &&p[3]==0x20){
-                skb_free(&skb);
-                intercepted = 1;
-                send_fake_le_pack((uint8_t *)le_buf_size_pack,9);
-            }
-            else if(event_code == HCI_COMMAND_STATUS_EVT && len==0x04 && p[0]==0x01 && p[1]==0x02 && p[2]==0x1c &&p[3]==0x20){
-                skb_free(&skb);
-                intercepted = 1;
-                send_fake_le_pack((uint8_t *)le_support_state_pack,14);
-            }
-            else if(event_code == HCI_COMMAND_STATUS_EVT && len==0x04 && p[0]==0x01 && p[1]==0x02 && p[2]==0x03 &&p[3]==0x20){
-                skb_free(&skb);
-                intercepted = 1;
-                send_fake_le_pack((uint8_t *)le_local_support_pack,14);
-            }
-            else if(event_code == HCI_COMMAND_STATUS_EVT && len==0x04 && p[0]==0x01 && p[1]==0x02 && p[2]==0x01 &&p[3]==0x20){
-                skb_free(&skb);
-                intercepted = 1;
-                send_fake_le_pack((uint8_t *)le_set_event_pack,6);
-            }
-            else if(event_code == HCI_COMMAND_STATUS_EVT && len==0x04 && p[0]==0x01 && p[1]==0x02 && p[2]==0x18 &&p[3]==0x20){
-                skb_free(&skb);
-                intercepted = 1;
-                send_fake_le_pack((uint8_t *)le_set_rand,14);
-            }
-
-        }
-#endif
-
-        if(loopbackmode == 0x01){
-            if(event_code == HCI_LOOPBACK_COMMAND_EVT
-                && p[0]==0x19 && p[1]==0xfc){
-              intercepted = 1;
-              skb_free(&skb);
-          }
-        }//drop 0xfc19 frame when in loopbackmode,fix loopbackmode test fail
-
         if (event_code == HCI_COMMAND_COMPLETE_EVT)
         {
             num_hci_cmd_pkts = *p++;
@@ -1655,9 +1429,6 @@ static uint8_t hci_recv_frame(sk_buff *skb, uint8_t pkt_type)
                 H5LogMsg("CommandCompleteEvent for command h5_start_wait_controller_baudrate_ready_timer (0x%04X)", opcode);
                 h5_start_wait_controller_baudrate_ready_timer();
             }
-        }else if(event_code == 0xff ){
-           intercepted = 1;
-           skb_free(&skb);
         }
 
     }
@@ -2360,14 +2131,6 @@ uint16_t hci_h5_send_cmd(serial_data_type_t type, uint8_t *data, uint16_t length
         H5LogMsg("RX HCI RESET Command, stop hw init timer");
         h5_stop_hw_init_ready_timer();
     }
-    if(opcode == HCI_WRITE_LOOPBACK_MODE)
-        loopbackmode = 0x01;
-	#if ENABLE_BLE_8703
-		if(opcode == 0x1408)//enc key size
-			 encHandle = (uint16_t)data[1] + ((uint16_t)data[2] << 8);
-	 
-	#endif
-
     bytes_to_send = h5_wake_up();
     return length;
 }
@@ -2384,18 +2147,8 @@ uint16_t hci_h5_send_cmd(serial_data_type_t type, uint8_t *data, uint16_t length
 *******************************************************************************/
 uint16_t hci_h5_send_acl_data(serial_data_type_t type, uint8_t *data, uint16_t length)
 {
-    uint16_t bytes_to_send;//, lay_spec;
+    uint16_t bytes_to_send;
     sk_buff * skb = NULL;
-    if(loopbackmode == 1){
-        acl_len = length;
-        if(!acl_pack)
-            acl_pack = malloc(2050);
-        if(acl_len>2050)
-            acl_len = 2050;
-        memcpy(acl_pack,data,acl_len);
-        start_loopacktimer();
-        return length;
-    }
 
     skb = skb_alloc_and_init(type, data, length);
     if(!skb) {
@@ -2422,7 +2175,7 @@ uint16_t hci_h5_send_acl_data(serial_data_type_t type, uint8_t *data, uint16_t l
 uint16_t hci_h5_send_sco_data(serial_data_type_t type, uint8_t *data, uint16_t length)
 {
     sk_buff * skb = NULL;
-    uint16_t bytes_to_send;//, lay_spec;
+    uint16_t bytes_to_send;
 
     skb = skb_alloc_and_init(type, data, length);
     if(!skb) {

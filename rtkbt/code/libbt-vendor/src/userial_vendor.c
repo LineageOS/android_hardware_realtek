@@ -40,6 +40,14 @@
 
 #ifdef CONFIG_SCO_OVER_HCI
 #include "sbc.h"
+#ifdef CONFIG_SCO_MSBC_PLC
+#include "sbcplc.h"
+unsigned char indices0[] = {0xad, 0x0, 0x0, 0xc5, 0x0, 0x0, 0x0, 0x0, 0x77, 0x6d,
+                    0xb6, 0xdd, 0xdb, 0x6d, 0xb7, 0x76, 0xdb, 0x6d, 0xdd, 0xb6, 0xdb, 0x77, 0x6d,
+                    0xb6, 0xdd, 0xdb, 0x6d, 0xb7, 0x76, 0xdb, 0x6d, 0xdd, 0xb6, 0xdb, 0x77, 0x6d,
+                    0xb6, 0xdd, 0xdb, 0x6d, 0xb7, 0x76, 0xdb, 0x6d, 0xdd, 0xb6, 0xdb, 0x77, 0x6d,
+                    0xb6, 0xdd, 0xdb, 0x6d, 0xb7, 0x76, 0xdb, 0x6c, 0x00}; //padding at the end
+#endif
 #endif
 /******************************************************************************
 **  Constants & Macros
@@ -67,6 +75,7 @@
 extern char rtkbt_transtype;
 extern void Heartbeat_cleanup();
 extern void Heartbeat_init();
+extern int RTK_btservice_init();
 
 /******************************************************************************
 **  Local type definitions
@@ -132,6 +141,8 @@ typedef struct
     int ctrl_fd, data_fd;
     sbc_t sbc_dec, sbc_enc;
     uint32_t pcm_enc_seq;
+    int8_t pcm_dec_seq;
+    uint32_t pcm_dec_frame;
     int signal_fd[2];
 }sco_cb_t;
 #endif
@@ -270,6 +281,25 @@ void userial_ioctl_init_bt_wake(int fd)
 /*****************************************************************************
 **   Userial Vendor API Functions
 *****************************************************************************/
+static void userial_send_hw_error()
+{
+    unsigned char p_buf[100];
+    int length;
+    p_buf[0] = HCIT_TYPE_EVENT;//event
+    p_buf[1] = HCI_VSE_SUBCODE_DEBUG_INFO_SUB_EVT;//firmwre event log
+    p_buf[3] = 0x01;// host log opcode
+    length = sprintf((char *)&p_buf[4], "host stack: userial error \n");
+    p_buf[2] = length + 2;//len
+    length = length + 1 + 4;
+    userial_recv_rawdata_hook(p_buf,length);
+
+    length = 4;
+    p_buf[0] = HCIT_TYPE_EVENT;//event
+    p_buf[1] = HCI_HARDWARE_ERROR_EVT;//hardware error
+    p_buf[2] = 0x01;//len
+    p_buf[3] = USERIAL_HWERR_CODE_RTK;//userial error code
+    userial_recv_rawdata_hook(p_buf,length);
+}
 
 /*******************************************************************************
 **
@@ -1022,6 +1052,13 @@ static void* userial_recv_sco_thread(void *arg)
     int res = 0;
     size_t writen = 0;
     prctl(PR_SET_NAME, (unsigned long)"userial_recv_sco_thread", 0, 0, 0);
+    sco_cb.pcm_dec_seq = -1;
+    sco_cb.pcm_dec_frame = 0;
+#ifdef CONFIG_SCO_MSBC_PLC
+    unsigned char plc_data[480];
+    struct PLC_State plc_state;
+    InitPLC(&plc_state);
+#endif
     /*
     FILE *file;
     unsigned char enc_data[60];
@@ -1076,9 +1113,46 @@ static void* userial_recv_sco_thread(void *arg)
             }
         }
         */
-            res = sbc_decode(&sco_cb.sbc_dec, (p_data+2), 58, dec_data, 240, &writen);
+            uint8_t seq = (p_data[1] >> 4) & 0x0F;
+            uint32_t last_dec_frame = sco_cb.pcm_dec_frame;
+            if(sco_cb.pcm_dec_seq == -1) {
+              uint8_t step = 0;
+              sco_cb.pcm_dec_seq = (int8_t)seq;
+              step += (seq & 0x03)/2;
+              step += ((seq >> 2) & 0x03) / 2;
+              sco_cb.pcm_dec_frame += step;
+            }
+            else {
+              do{
+                sco_cb.pcm_dec_seq = (uint8_t)((btui_msbc_h2[(++sco_cb.pcm_dec_frame) % 4] >> 12) & 0x0F);
+              }while(sco_cb.pcm_dec_seq != seq);
+
+              if((last_dec_frame + 1) != sco_cb.pcm_dec_frame) {
+                ALOGE("lost frame: %d, may use the plc function", (sco_cb.pcm_dec_frame - last_dec_frame));
+#ifdef CONFIG_SCO_MSBC_PLC
+                uint8_t lost_frame = sco_cb.pcm_dec_frame - last_dec_frame - 1;
+                int i = 0;
+                for(i = 0; i < lost_frame; i++) {
+                    sbc_decode(&sco_cb.sbc_dec, indices0, 58, dec_data, 240, &writen);
+                    PLC_bad_frame(&plc_state, (short*)dec_data, (short*)plc_data);
+                    memcpy(&pcm_data[240 * index], plc_data, 240);
+                    index = (index + 1) % 4;
+                    if(index == 0) {
+                      Skt_Send_noblock(sco_cb.data_fd, pcm_data, 960);
+                    }
+                }
+#endif
+              }
+            }
+
+            res = sbc_decode(&sco_cb.sbc_dec, (p_data + 2), 58, dec_data, 240, &writen);
             if(res > 0) {
+#ifdef CONFIG_SCO_MSBC_PLC
+                PLC_good_frame(&plc_state, (short*)dec_data, (short*)plc_data);
+                memcpy(&pcm_data[240 * index], plc_data, 240);
+#else
                 memcpy(&pcm_data[240 * index], dec_data, 240);
+#endif
                 //if (fwrite(dec_data, 240, 1, file2) != 240) {
                     //ALOGE("Error capturing sample");
                 //}
@@ -1088,7 +1162,17 @@ static void* userial_recv_sco_thread(void *arg)
                 }
             }
             else {
-                ALOGE("msbc decode fail!");
+                ALOGE("msbc decode fail! May use PLC function");
+#ifdef CONFIG_SCO_MSBC_PLC
+                sbc_decode(&sco_cb.sbc_dec, indices0, 58, dec_data, 240, &writen);
+                PLC_bad_frame(&plc_state, (short*)dec_data, (short*)plc_data);
+                memcpy(&pcm_data[240 * index], plc_data, 240);
+                index = (index + 1) % 4;
+                if(index == 0) {
+                  Skt_Send_noblock(sco_cb.data_fd, pcm_data, 960);
+                }
+#endif
+
             }
         }
         RtbFree(skb_sco_data);
@@ -1589,10 +1673,10 @@ static void userial_handle_cmd(unsigned char * recv_buffer, int total_length)
             if(rtkbt_version.hci_version > HCI_PROTO_VERSION_4_2) {
                 break;
             }
-            if(recv_buffer[2] == 0x01) {
+            if(recv_buffer[3] == 0x01) {
                 rtkbt_adv_con.adverting_start = TRUE;
             }
-            else if(recv_buffer[2] == 0x00) {
+            else if(recv_buffer[3] == 0x00) {
                 rtkbt_adv_con.adverting_type = 0;
                 rtkbt_adv_con.adverting_enable = FALSE;
                 rtkbt_adv_con.adverting_start = FALSE;
@@ -1885,6 +1969,8 @@ static void userial_enqueue_recv_sco_data(unsigned char * recv_buffer, int total
     RTK_BUFFER* skb_sco_data;
     int i;
     sco_handle = *((uint16_t *)p_data);
+    uint8_t packet_flag = (uint8_t)((sco_handle >> 12) & 0x0003);
+    sco_handle &= 0x0FFF;
     uint16_t current_pos = sco_cb.current_pos;
     uint16_t sco_packet_len = sco_cb.sco_packet_len;
 
@@ -1892,6 +1978,8 @@ static void userial_enqueue_recv_sco_data(unsigned char * recv_buffer, int total
         sco_length = p_data[SCO_PREAMBLE_SIZE - 1];
         p_data += SCO_PREAMBLE_SIZE;
 
+        if(packet_flag != 0x00)
+          ALOGE("sco data receive wrong packet_flag : %d", packet_flag);
         if(current_pos) {
             if((sco_packet_len - current_pos) <= sco_length) {
                 memcpy(&sco_cb.enc_data[current_pos], p_data, (sco_packet_len - current_pos));
@@ -2277,6 +2365,7 @@ static void* userial_recv_uart_thread(void *arg)
             ALOGE("%s poll error, fd : %d", __func__, vnd_userial.fd);
             vnd_userial.btdriver_state = false;
             close(vnd_userial.fd);
+            userial_send_hw_error();
             return NULL;
         }
         if (ret < 0)
@@ -2413,6 +2502,7 @@ int userial_socket_open()
         }
     }
 
+    RTK_btservice_init();
     ret = vnd_userial.uart_fd[0];
     return ret;
 }
@@ -2439,4 +2529,12 @@ int userial_vendor_usb_open(void)
 
     return vnd_userial.fd;
 }
+
+void userial_set_bt_interface_state(int bt_on)
+{
+  if(rtk_parse_manager) {
+      rtk_parse_manager->rtk_set_bt_on(bt_on);
+  }
+}
+
 

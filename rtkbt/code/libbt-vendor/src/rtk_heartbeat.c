@@ -16,7 +16,7 @@
  *
  ******************************************************************************/
 #define LOG_TAG "rtk_heartbeat"
-#define RTKBT_RELEASE_NAME "20190520_BT_ANDROID_9.0"
+#define RTKBT_RELEASE_NAME "20191111_BT_ANDROID_9.0"
 
 #include <utils/Log.h>
 #include <sys/types.h>
@@ -72,8 +72,6 @@ typedef struct Rtk_Service_Data
     uint8_t         *parameter;
     void            (*complete_cback)(void *);
 }Rtk_Service_Data;
-
-#define HCI_CMD_VNDR_HEARTBEAT      0xFC94
 
 extern void Rtk_Service_Vendorcmd_Hook(Rtk_Service_Data *RtkData, int client_sock);
 extern uint8_t get_heartbeat_from_hardware();
@@ -142,7 +140,7 @@ static void rtkbt_heartbeat_send_hw_error(uint8_t status, uint16_t seqnum, uint1
     p_buf[0] = HCIT_TYPE_EVENT;//event
     p_buf[1] = HCI_VSE_SUBCODE_DEBUG_INFO_SUB_EVT;//firmwre event log
     p_buf[3] = 0x01;// host log opcode
-    length = sprintf((char *)&p_buf[4], "host stack: heartbeat hw error: %d:%d:%d:%d",
+    length = sprintf((char *)&p_buf[4], "host stack: heartbeat hw error: %d:%d:%d:%d \n",
       status, seqnum, next_seqnum, heartbeatCnt);
     p_buf[2] = length + 2;//len
     length = length + 1 + 4;
@@ -152,7 +150,7 @@ static void rtkbt_heartbeat_send_hw_error(uint8_t status, uint16_t seqnum, uint1
     p_buf[0] = HCIT_TYPE_EVENT;//event
     p_buf[1] = HCI_HARDWARE_ERROR_EVT;//hardware error
     p_buf[2] = 0x01;//len
-    p_buf[3] = 0xfc;//heartbeat error code
+    p_buf[3] = HEARTBEAT_HWERR_CODE_RTK;//heartbeat error code
     userial_recv_rawdata_hook(p_buf,length);
 }
 

@@ -27,7 +27,7 @@
  ******************************************************************************/
 
 #define LOG_TAG "bt_hwcfg"
-#define RTKBT_RELEASE_NAME "20190520_BT_ANDROID_9.0"
+#define RTKBT_RELEASE_NAME "20191111_BT_ANDROID_9.0"
 
 #include <utils/Log.h>
 #include <sys/types.h>
@@ -98,6 +98,7 @@ int getmacaddr(unsigned char * addr)
     char property[100] = {0};
     if (property_get("persist.vendor.rtkbt.bdaddr_path", property, "none")) {
         if(strcmp(property, "none") == 0) {
+			ALOGE("%s,persist.vendor.rtkbt.bdaddr_path = none", __func__);
             return -1;
         }
         else if(strcmp(property, "default") == 0) {
@@ -122,6 +123,7 @@ int getmacaddr(unsigned char * addr)
             return 0;
         }
     }
+	ALOGE("%s,return -1", __func__);
     return -1;
 }
 
@@ -206,15 +208,6 @@ uint8_t rtk_get_fw_project_id(uint8_t *p_buf)
 uint8_t get_heartbeat_from_hardware()
 {
     return hw_cfg_cb.heartbeat;
-}
-
-uint16_t getLmp_subversion()
-{
-    return hw_cfg_cb.lmp_subversion;
-}
-uint8_t getchip_type()
-{
-    return hw_cfg_cb.chip_type;
 }
 
 struct rtk_epatch_entry *rtk_get_patch_entry(bt_hw_cfg_cb_t *cfg_cb)

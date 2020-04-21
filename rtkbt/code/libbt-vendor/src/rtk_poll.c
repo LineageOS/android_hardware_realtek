@@ -88,8 +88,8 @@ extern int timer_create(clockid_t clockid, struct sigevent *sevp,
 extern int timer_delete(timer_t timerid);
 
 int timer_settime(timer_t timerid, int flags,
-                                 const struct itimerspec *new_value,
-                                                          struct itimerspec * old_value);
+                      const struct itimerspec *new_value,
+                      struct itimerspec * old_value);
 /******************************************************************************
 **  Static variables
 ******************************************************************************/

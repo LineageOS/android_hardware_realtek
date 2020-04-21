@@ -50,7 +50,7 @@
 #include <cutils/properties.h>
 #include "rtk_common.h"
 
-#define RTK_VERSION "5.0.1"
+#define RTK_VERSION "5.1.1"
 /******************************************************************************
 **  Constants & Macros
 ******************************************************************************/
@@ -87,12 +87,12 @@
 
 /* Device port name where Bluetooth controller attached */
 #ifndef BLUETOOTH_UART_DEVICE_PORT
-#define BLUETOOTH_UART_DEVICE_PORT      "/dev/ttyS1"    /* maguro */
+#define BLUETOOTH_UART_DEVICE_PORT      "/dev/ttyO1"    /* maguro */
 #endif
 
 /* Location of firmware patch files */
 #ifndef FW_PATCHFILE_LOCATION
-#define FW_PATCHFILE_LOCATION "/vendor/etc/firmware/"  /* maguro */
+#define FW_PATCHFILE_LOCATION "/vendor/firmware/"  /* maguro */
 #endif
 
 #ifndef UART_TARGET_BAUD_RATE
@@ -116,7 +116,7 @@
  *  firmware patchram (.hcd) file.
  */
 #ifndef USE_CONTROLLER_BDADDR
-#define USE_CONTROLLER_BDADDR   FALSE
+#define USE_CONTROLLER_BDADDR   TRUE //FALSE
 #endif
 
 /* sleep mode

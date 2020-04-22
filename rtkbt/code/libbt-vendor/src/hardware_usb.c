@@ -154,13 +154,13 @@ static usb_patch_info usb_fw_patch_table[] = {
 /* todo: RTL8703CU */
 
 // for RTL8822BE: AzureWave AW-CB295NF and Lite-On WCBN808L-AD
-{ 0x0B05, 0x185C, 0x8822, 0, 0, "mp_rtl8822b_fw", "rtl8822b_fw", "rtl8822b_config", NULL, 0 ,CONFIG_MAC_OFFSET_GEN_3PLUS, MAX_PATCH_SIZE_24K}, /* RTL8822BE */
+{ 0x0B05, 0x185C, 0x8822, 0, 0, "mp_rtl8822b_fw", "rtl8822bu_fw", "rtl8822bu_config", NULL, 0 ,CONFIG_MAC_OFFSET_GEN_3PLUS, MAX_PATCH_SIZE_24K}, /* RTL8822BE */
 // for RTL8822CE: Lite-On WCBN810L-AD module
-{ 0x04CA, 0x4005, 0x8822, 0, 0, "mp_rtl8822c_fw", "rtl8822c_fw", "rtl8822c_config", NULL, 0 ,CONFIG_MAC_OFFSET_GEN_4PLUS, MAX_PATCH_SIZE_40K}, /* RTL8822CE */
+{ 0x04CA, 0x4005, 0x8822, 0, 0, "mp_rtl8822c_fw", "rtl8822cu_fw", "rtl8822cu_config", NULL, 0 ,CONFIG_MAC_OFFSET_GEN_4PLUS, MAX_PATCH_SIZE_40K}, /* RTL8822CE */
 // for RTL8822CE: AzureWave AW-CB375NF module
-{ 0x13D3, 0x3548, 0x8822, 0, 0, "mp_rtl8822c_fw", "rtl8822c_fw", "rtl8822c_config", NULL, 0 ,CONFIG_MAC_OFFSET_GEN_4PLUS, MAX_PATCH_SIZE_40K}, /* RTL8822CE */
+{ 0x13D3, 0x3548, 0x8822, 0, 0, "mp_rtl8822c_fw", "rtl8822cu_fw", "rtl8822cu_config", NULL, 0 ,CONFIG_MAC_OFFSET_GEN_4PLUS, MAX_PATCH_SIZE_40K}, /* RTL8822CE */
 // for RTL8822CE: AzureWave AW-CB375NF module
-{ 0x13D3, 0x3549, 0x8822, 0, 0, "mp_rtl8822c_fw", "rtl8822c_fw", "rtl8822c_config", NULL, 0 ,CONFIG_MAC_OFFSET_GEN_4PLUS, MAX_PATCH_SIZE_40K}, /* RTL8822CE */
+{ 0x13D3, 0x3549, 0x8822, 0, 0, "mp_rtl8822c_fw", "rtl8822cu_fw", "rtl8822cu_config", NULL, 0 ,CONFIG_MAC_OFFSET_GEN_4PLUS, MAX_PATCH_SIZE_40K}, /* RTL8822CE */
 
 /* NOTE: must append patch entries above the null entry */
 { 0, 0, 0, 0, 0, NULL, NULL, NULL, NULL, 0, 0, 0 }

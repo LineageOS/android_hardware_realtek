@@ -5,7 +5,7 @@ CUR_PATH := hardware/realtek/rtkbt
 
 BOARD_HAVE_BLUETOOTH := true
 BOARD_HAVE_BLUETOOTH_RTK := true
-BOARD_HAVE_BLUETOOTH_RTK_TV := false
+BOARD_HAVE_BLUETOOTH_RTK_TV ?= false
 
 ifeq ($(BOARD_HAVE_BLUETOOTH_RTK_TV), true)
 #Firmware For Tv

@@ -141,23 +141,18 @@ int Rtkbt_Getevent(int sock_fd)
     int i;
 
     ret = read(sock_fd, &type, 1);
-    if(ret<=0)
+    if(ret <= 0)
         return -1;
-    //printf("event = %x\n",event);
 
     ret = read(sock_fd, &event, 1);
-    if(ret<=0)
+    if(ret <= 0)
         return -1;
-    //printf("event_len = %x\n",event_len);
 
     ret = read(sock_fd, &len, 1);
-    if(ret<=0)
+    if(ret <= 0)
         return -1;
-    //printf("offset = %x\n",offset);
 
     tot_len = len + 2;
-    //printf("layer_specific = %x\n",layer_specific);
-
     recvbuf=(unsigned char *)malloc(sizeof(char)*tot_len);
     recvbuf[0] = event;
     recvbuf[1] = len;

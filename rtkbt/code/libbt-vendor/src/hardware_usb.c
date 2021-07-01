@@ -17,7 +17,7 @@
  ******************************************************************************/
 
 #define LOG_TAG "bt_hwcfg_usb"
-#define RTKBT_RELEASE_NAME "20191111_BT_ANDROID_9.0"
+#define RTKBT_RELEASE_NAME "20200422_BT_ANDROID_10.0"
 
 #include <utils/Log.h>
 #include <sys/types.h>
@@ -131,17 +131,18 @@ static usb_patch_info usb_fw_patch_table[] = {
 { 0x13D3, 0x3461, 0x8821, 0, 0, "mp_rtl8821a_fw", "rtl8821a_fw", "rtl8821a_config", NULL, 0 ,CONFIG_MAC_OFFSET_GEN_1_2, MAX_PATCH_SIZE_24K}, /* RTL8821AE */
 { 0x13D3, 0x3462, 0x8821, 0, 0, "mp_rtl8821a_fw", "rtl8821a_fw", "rtl8821a_config", NULL, 0 ,CONFIG_MAC_OFFSET_GEN_1_2, MAX_PATCH_SIZE_24K}, /* RTL8821AE */
 
-{ 0x0BDA, 0xB822, 0x8822, 0, 0, "mp_rtl8822b_fw", "rtl8822b_fw", "rtl8822b_config", NULL, 0 ,CONFIG_MAC_OFFSET_GEN_3PLUS, MAX_PATCH_SIZE_24K}, /* RTL8822BE */
-{ 0x0BDA, 0xB82C, 0x8822, 0, 0, "mp_rtl8822b_fw", "rtl8822b_fw", "rtl8822b_config", NULL, 0 ,CONFIG_MAC_OFFSET_GEN_3PLUS, MAX_PATCH_SIZE_24K}, /* RTL8822BU */
-{ 0x0BDA, 0xB81D, 0x8822, 0, 0, "mp_rtl8822b_fw", "rtl8822b_fw", "rtl8822b_config", NULL, 0 ,CONFIG_MAC_OFFSET_GEN_3PLUS, MAX_PATCH_SIZE_24K}, /* RTL8822BU BT only */
-{ 0x0BDA, 0xB82E, 0x8822, 0, 0, "mp_rtl8822b_fw", "rtl8822b_fw", "rtl8822b_config", NULL, 0 ,CONFIG_MAC_OFFSET_GEN_3PLUS, MAX_PATCH_SIZE_24K}, /* RTL8822BU-VN */
-{ 0x0BDA, 0xB023, 0x8822, 0, 0, "mp_rtl8822b_fw", "rtl8822b_fw", "rtl8822b_config", NULL, 0 ,CONFIG_MAC_OFFSET_GEN_3PLUS, MAX_PATCH_SIZE_24K}, /* RTL8822BE */
+{ 0x0BDA, 0xB822, 0x8822, 0, 0, "mp_rtl8822b_fw", "rtl8822b_fw", "rtl8822b_config", NULL, 0 ,CONFIG_MAC_OFFSET_GEN_3PLUS, MAX_PATCH_SIZE_25K}, /* RTL8822BE */
+{ 0x0BDA, 0xB82C, 0x8822, 0, 0, "mp_rtl8822b_fw", "rtl8822b_fw", "rtl8822b_config", NULL, 0 ,CONFIG_MAC_OFFSET_GEN_3PLUS, MAX_PATCH_SIZE_25K}, /* RTL8822BU */
+{ 0x0BDA, 0xB81D, 0x8822, 0, 0, "mp_rtl8822b_fw", "rtl8822b_fw", "rtl8822b_config", NULL, 0 ,CONFIG_MAC_OFFSET_GEN_3PLUS, MAX_PATCH_SIZE_25K}, /* RTL8822BU BT only */
+{ 0x0BDA, 0xB82E, 0x8822, 0, 0, "mp_rtl8822b_fw", "rtl8822b_fw", "rtl8822b_config", NULL, 0 ,CONFIG_MAC_OFFSET_GEN_3PLUS, MAX_PATCH_SIZE_25K}, /* RTL8822BU-VN */
+{ 0x0BDA, 0xB023, 0x8822, 0, 0, "mp_rtl8822b_fw", "rtl8822b_fw", "rtl8822b_config", NULL, 0 ,CONFIG_MAC_OFFSET_GEN_3PLUS, MAX_PATCH_SIZE_25K}, /* RTL8822BE */
 { 0x0BDA, 0xB703, 0x8703, 0, 0, "mp_rtl8723c_fw", "rtl8723c_fw", "rtl8723c_config", NULL, 0 ,CONFIG_MAC_OFFSET_GEN_3PLUS, MAX_PATCH_SIZE_24K}, /* RTL8723CU */
 { 0x0BDA, 0xC82C, 0x8822, 0, 0, "mp_rtl8822c_fw", "rtl8822c_fw", "rtl8822c_config", NULL, 0 ,CONFIG_MAC_OFFSET_GEN_4PLUS, MAX_PATCH_SIZE_40K}, /* RTL8822CU */
 { 0x0BDA, 0xC82E, 0x8822, 0, 0, "mp_rtl8822c_fw", "rtl8822c_fw", "rtl8822c_config", NULL, 0 ,CONFIG_MAC_OFFSET_GEN_4PLUS, MAX_PATCH_SIZE_40K}, /* RTL8822CU-VN */
 { 0x0BDA, 0xC81D, 0x8822, 0, 0, "mp_rtl8822c_fw", "rtl8822c_fw", "rtl8822c_config", NULL, 0 ,CONFIG_MAC_OFFSET_GEN_4PLUS, MAX_PATCH_SIZE_40K}, /* RTL8822CU BT only */
 { 0x0BDA, 0xC82F, 0x8822, 0, 0, "mp_rtl8822c_fw", "rtl8822c_fw", "rtl8822c_config", NULL, 0 ,CONFIG_MAC_OFFSET_GEN_4PLUS, MAX_PATCH_SIZE_40K}, /* RTL8822CE-VS */
 { 0x0BDA, 0xC822, 0x8822, 0, 0, "mp_rtl8822c_fw", "rtl8822c_fw", "rtl8822c_config", NULL, 0 ,CONFIG_MAC_OFFSET_GEN_4PLUS, MAX_PATCH_SIZE_40K}, /* RTL8822CE */
+{ 0x0BDA, 0xB00C, 0x8822, 0, 0, "mp_rtl8822c_fw", "rtl8822c_fw", "rtl8822c_config", NULL, 0 ,CONFIG_MAC_OFFSET_GEN_4PLUS, MAX_PATCH_SIZE_40K}, /* RTL8822CE */
 /* todo: RTL8703BU */
 
 { 0x0BDA, 0xD723, 0x8723, 0, 0, "mp_rtl8723d_fw", "rtl8723d_fw", "rtl8723d_config", NULL, 0 ,CONFIG_MAC_OFFSET_GEN_3PLUS, MAX_PATCH_SIZE_40K}, /* RTL8723DU */
@@ -152,15 +153,6 @@ static usb_patch_info usb_fw_patch_table[] = {
 { 0x0BDA, 0xC82A, 0x8821, 0, 0, "mp_rtl8821c_fw", "rtl8821c_fw", "rtl8821c_config", NULL, 0 ,CONFIG_MAC_OFFSET_GEN_3PLUS, MAX_PATCH_SIZE_40K}, /* RTL8821CU BT only */
 { 0x0BDA, 0xC821, 0x8821, 0, 0, "mp_rtl8821c_fw", "rtl8821c_fw", "rtl8821c_config", NULL, 0 ,CONFIG_MAC_OFFSET_GEN_3PLUS, MAX_PATCH_SIZE_40K}, /* RTL8821CE */
 /* todo: RTL8703CU */
-
-// for RTL8822BE: AzureWave AW-CB295NF and Lite-On WCBN808L-AD
-{ 0x0B05, 0x185C, 0x8822, 0, 0, "mp_rtl8822b_fw", "rtl8822bu_fw", "rtl8822bu_config", NULL, 0 ,CONFIG_MAC_OFFSET_GEN_3PLUS, MAX_PATCH_SIZE_24K}, /* RTL8822BE */
-// for RTL8822CE: Lite-On WCBN810L-AD module
-{ 0x04CA, 0x4005, 0x8822, 0, 0, "mp_rtl8822c_fw", "rtl8822cu_fw", "rtl8822cu_config", NULL, 0 ,CONFIG_MAC_OFFSET_GEN_4PLUS, MAX_PATCH_SIZE_40K}, /* RTL8822CE */
-// for RTL8822CE: AzureWave AW-CB375NF module
-{ 0x13D3, 0x3548, 0x8822, 0, 0, "mp_rtl8822c_fw", "rtl8822cu_fw", "rtl8822cu_config", NULL, 0 ,CONFIG_MAC_OFFSET_GEN_4PLUS, MAX_PATCH_SIZE_40K}, /* RTL8822CE */
-// for RTL8822CE: AzureWave AW-CB375NF module
-{ 0x13D3, 0x3549, 0x8822, 0, 0, "mp_rtl8822c_fw", "rtl8822cu_fw", "rtl8822cu_config", NULL, 0 ,CONFIG_MAC_OFFSET_GEN_4PLUS, MAX_PATCH_SIZE_40K}, /* RTL8822CE */
 
 /* NOTE: must append patch entries above the null entry */
 { 0, 0, 0, 0, 0, NULL, NULL, NULL, NULL, 0, 0, 0 }
@@ -386,6 +378,7 @@ static void rtk_usb_update_altsettings(usb_patch_info *patch_entry, unsigned cha
     }
     else
         memset(extra_extry, 0, MAX_ALT_CONFIG_SIZE);
+
 
     ALOGI("ORG Config len=%08zx:\n", config_len);
     for(i = 0; i <= config_len; i+= 0x10)
@@ -885,6 +878,16 @@ void hw_usb_config_cback(void *p_mem)
 
                         hw_cfg_cb.state = 0;
                         is_proceeding = TRUE;
+                        if(hw_cfg_cb.config_len)
+                        {
+                            free(hw_cfg_cb.config_buf);
+                            hw_cfg_cb.config_len = 0;
+                        }
+                        if(hw_cfg_cb.fw_len)
+                        {
+                            free(hw_cfg_cb.fw_buf);
+                            hw_cfg_cb.fw_len= 0;
+                        }
                     }
 
  /*                   if(hw_cfg_cb.lmp_subversion == LMPSUBVERSION_8723a)
@@ -903,7 +906,29 @@ void hw_usb_config_cback(void *p_mem)
                     }*/
                 }
                 else {
-                  ALOGE("status = %d, or p_evt_buf is NULL", status);
+                    ALOGE("status = %d, or p_evt_buf is NULL", status);
+                    if(hw_cfg_cb.total_buf){
+                        free(hw_cfg_cb.total_buf);
+                        hw_cfg_cb.total_len = 0;
+                    }
+
+                    bt_vendor_cbacks->dealloc(p_buf);
+                    bt_vendor_cbacks->fwcfg_cb(BT_VND_OP_RESULT_FAIL);
+
+                    hw_cfg_cb.state = 0;
+                    is_proceeding = TRUE;
+
+                    if(hw_cfg_cb.config_len)
+                    {
+                        free(hw_cfg_cb.config_buf);
+                        hw_cfg_cb.config_len = 0;
+                    }
+
+                    if(hw_cfg_cb.fw_len)
+                    {
+                        free(hw_cfg_cb.fw_buf);
+                        hw_cfg_cb.fw_len= 0;
+                    }
                 }
                 break;
             }
@@ -957,14 +982,15 @@ CFG_USB_START:
                     break;
                 }
                 hw_cfg_cb.max_patch_size = prtk_usb_patch_file_info->max_patch_size;
-                hw_cfg_cb.config_len = rtk_usb_get_bt_config(&hw_cfg_cb.config_buf, prtk_usb_patch_file_info->config_name, prtk_usb_patch_file_info->mac_offset);
+                if(!hw_cfg_cb.config_len)
+                    hw_cfg_cb.config_len = rtk_usb_get_bt_config(&hw_cfg_cb.config_buf, prtk_usb_patch_file_info->config_name, prtk_usb_patch_file_info->mac_offset);
                 if (hw_cfg_cb.config_len)
                 {
                     ALOGE("update altsettings");
                     rtk_usb_update_altsettings(prtk_usb_patch_file_info, hw_cfg_cb.config_buf, &(hw_cfg_cb.config_len));
                 }
-
-                hw_cfg_cb.fw_len = rtk_get_bt_firmware(&hw_cfg_cb.fw_buf, prtk_usb_patch_file_info->patch_name);
+                if(!hw_cfg_cb.fw_len)
+                    hw_cfg_cb.fw_len = rtk_get_bt_firmware(&hw_cfg_cb.fw_buf, prtk_usb_patch_file_info->patch_name);
                 if (hw_cfg_cb.fw_len < 0)
                 {
                     ALOGE("Get BT firmware fail");

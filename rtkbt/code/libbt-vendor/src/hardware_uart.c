@@ -17,7 +17,7 @@
  ******************************************************************************/
 
 #define LOG_TAG "bt_hwcfg_uart"
-#define RTKBT_RELEASE_NAME "20191111_BT_ANDROID_9.0"
+#define RTKBT_RELEASE_NAME "20200422_BT_ANDROID_10.0"
 
 #include <utils/Log.h>
 #include <sys/types.h>
@@ -119,8 +119,9 @@ static patch_info patch_table[] = {
     {0x8703,            HCI_VERSION_MASK_ALL,    HCI_REVISION_MASK_ALL, 1<<3,                1<<7,                  "rtl8723cs_cg_fw",      "rtl8723cs_cg_config",  CONFIG_MAC_OFFSET_GEN_3PLUS,  MAX_PATCH_SIZE_24K},     //rtl8723cs_cg
     {0x8703,            HCI_VERSION_MASK_ALL,    HCI_REVISION_MASK_ALL, 1<<4,                1<<7,                  "rtl8723cs_vf_fw",      "rtl8723cs_vf_config",  CONFIG_MAC_OFFSET_GEN_3PLUS,  MAX_PATCH_SIZE_24K},     //rtl8723cs_vf
 //  {0x8822,            HCI_VERSION_MASK_ALL,    HCI_REVISION_MASK_ALL, CHIP_TYPE_MASK_ALL,  1<<8,                  "rtl8822bs_fw",         "rtl8822bs_config",     CONFIG_MAC_OFFSET_GEN_3PLUS,  MAX_PATCH_SIZE_24K},   //Rtl8822BS
-    {0x8822,            HCI_VERSION_MASK_ALL,    ~(1<<0xc),             CHIP_TYPE_MASK_ALL,  1<<8,                  "rtl8822bs_fw",         "rtl8822bs_config",     CONFIG_MAC_OFFSET_GEN_3PLUS,  MAX_PATCH_SIZE_24K},     //Rtl8822BS
+    {0x8822,            HCI_VERSION_MASK_ALL,    ~(1<<0xc),             CHIP_TYPE_MASK_ALL,  1<<8,                  "rtl8822bs_fw",         "rtl8822bs_config",     CONFIG_MAC_OFFSET_GEN_3PLUS,  MAX_PATCH_SIZE_25K},     //Rtl8822BS
     {0x8822,            HCI_VERSION_MASK_ALL,    (1<<0xc),              CHIP_TYPE_MASK_ALL,  1<<13,                 "rtl8822cs_fw",         "rtl8822cs_config",     CONFIG_MAC_OFFSET_GEN_4PLUS,  MAX_PATCH_SIZE_40K},     //Rtl8822CS
+
 
     {0x8723,            HCI_VERSION_MASK_ALL,    (1<<0xd),              ~(1<<7),           1<<9,                    "rtl8723ds_fw",         "rtl8723ds_config",     CONFIG_MAC_OFFSET_GEN_3PLUS,  MAX_PATCH_SIZE_40K}, //Rtl8723ds
     {0x8723,            HCI_VERSION_MASK_ALL,    (1<<0xd),              1<<7,              1<<9,                    "rtl8703cs_fw",         "rtl8703cs_config",     CONFIG_MAC_OFFSET_GEN_3PLUS,  MAX_PATCH_SIZE_40K}, //Rtl8703cs

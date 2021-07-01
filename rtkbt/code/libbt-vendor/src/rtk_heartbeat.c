@@ -16,7 +16,7 @@
  *
  ******************************************************************************/
 #define LOG_TAG "rtk_heartbeat"
-#define RTKBT_RELEASE_NAME "20191111_BT_ANDROID_9.0"
+#define RTKBT_RELEASE_NAME "20200422_BT_ANDROID_10.0"
 
 #include <utils/Log.h>
 #include <sys/types.h>
@@ -158,7 +158,7 @@ static void rtkbt_heartbeat_cmpl_cback (void *p_params)
 {
     uint8_t  status = 0;
     uint16_t seqnum = 0;
-    HC_BT_HDR *p_evt_buf = p_params;
+    HC_BT_HDR *p_evt_buf = NULL;
     //uint8_t  *p = NULL;
 
     if(!heartbeatFlag)

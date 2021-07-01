@@ -77,6 +77,7 @@ extern void Heartbeat_cleanup();
 extern void Heartbeat_init();
 extern int RTK_btservice_init();
 
+
 /******************************************************************************
 **  Local type definitions
 ******************************************************************************/
@@ -312,7 +313,10 @@ static void userial_send_hw_error()
 *******************************************************************************/
 void userial_vendor_init(char *bt_device_node)
 {
+#ifdef RTK_HANDLE_EVENT
+
     memset(&rtkbt_adv_con, 0, sizeof(rtkbt_lescn_t));
+#endif
     memset(&vnd_userial, 0, sizeof(vnd_userial_cb_t));
     vnd_userial.fd = -1;
     char value[100];
@@ -486,9 +490,14 @@ static void userial_socket_close(void)
     if ((vnd_userial.uart_fd[1] > 0) && (result = close(vnd_userial.uart_fd[1])) < 0)
         ALOGE( "%s (fd:%d) FAILED result:%d", __func__, vnd_userial.uart_fd[1], result);
 
-    if(vnd_userial.thread_socket_id != -1)
-        pthread_join(vnd_userial.thread_socket_id, NULL);
-
+    if(vnd_userial.thread_socket_id != -1){
+        if ((result = pthread_join(vnd_userial.thread_socket_id, NULL)) < 0)
+            ALOGE( "data thread pthread_join()  vnd_userial.thread_socket_id failed result:%d", result);
+        else{
+            vnd_userial.thread_socket_id = -1;
+            ALOGE( "data thread pthread_join() vnd_userial.thread_socket_id pthread_join_success result:%d", result);
+            }
+    }
     if(vnd_userial.epoll_fd > 0)
         close(vnd_userial.epoll_fd);
 
@@ -527,8 +536,14 @@ static void userial_coex_close(void)
         ALOGE( "%s (fd:%d) FAILED result:%d", __func__, vnd_userial.event_fd, result);
 
     close(vnd_userial.cpoll_fd);
-    if(vnd_userial.thread_coex_id != -1)
-      pthread_join(vnd_userial.thread_coex_id, NULL);
+    if(vnd_userial.thread_coex_id != -1){
+        if(pthread_join(vnd_userial.thread_coex_id, NULL) != 0){
+            ALOGE( "%s vnd_userial.thread_coex_id  pthread_join_failed", __func__);
+        }else{
+            vnd_userial.thread_coex_id = -1;
+            ALOGE( "%s vnd_userial.thread_coex_id  pthread_join_success", __func__);
+        }
+    }
     vnd_userial.cpoll_fd = -1;
     vnd_userial.event_fd = -1;
 }
@@ -539,6 +554,23 @@ void userial_send_close_signal(void)
     ssize_t ret;
     RTK_NO_INTR(ret = write(vnd_userial.signal_fd[0], &close_signal, 1));
 }
+
+void userial_quene_close(void)
+{
+#if 0
+    int data_order_len = 0;
+    int recv_data_len = 0;
+    int send_data_len = 0;
+    data_order_len = RtbGetQueueLen(vnd_userial.data_order);
+    recv_data_len = RtbGetQueueLen(vnd_userial.recv_data);
+    send_data_len = RtbGetQueueLen(vnd_userial.send_data);
+    ALOGE( "%s data_order_len = %d,recv_data_len = %d ,send_data_len = %d", __func__,data_order_len,recv_data_len,send_data_len);
+#endif
+    RtbQueueFree(vnd_userial.data_order);
+    RtbQueueFree(vnd_userial.recv_data);
+    RtbQueueFree(vnd_userial.send_data);
+}
+
 
 /*******************************************************************************
 **
@@ -579,7 +611,7 @@ void userial_vendor_close(void)
     userial_uart_close();
     userial_coex_close();
     userial_socket_close();
-
+    userial_quene_close();
     if((rtkbt_transtype & RTKBT_TRANS_UART) && (rtkbt_transtype & RTKBT_TRANS_H5)) {
         h5_int_interface->h5_int_cleanup();
     }
@@ -780,6 +812,7 @@ static void userial_enqueue_coex_rawdata(unsigned char * buffer, int length, boo
     }
 }
 
+#ifdef RTK_HANDLE_EVENT
 static void userial_send_cmd_to_controller(unsigned char * recv_buffer, int total_length)
 {
     if(rtkbt_transtype & RTKBT_TRANS_H4) {
@@ -791,6 +824,7 @@ static void userial_send_cmd_to_controller(unsigned char * recv_buffer, int tota
     userial_enqueue_coex_rawdata(recv_buffer, total_length, false);
 }
 
+#endif
 static void userial_send_acl_to_controller(unsigned char * recv_buffer, int total_length)
 {
     if(rtkbt_transtype & RTKBT_TRANS_H4) {
@@ -2317,7 +2351,7 @@ static void* userial_recv_socket_thread(void *arg)
             }
         }
     }
-    vnd_userial.thread_socket_id = -1;
+    //vnd_userial.thread_socket_id = -1;
     ALOGD("%s exit", __func__);
     return NULL;
 }
@@ -2404,7 +2438,7 @@ static void* userial_coex_thread(void *arg)
             }
         }
     }
-    vnd_userial.thread_coex_id = -1;
+   // vnd_userial.thread_coex_id = -1;
     ALOGD("%s exit", __func__);
     return NULL;
 }

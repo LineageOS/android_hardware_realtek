@@ -59,9 +59,5 @@ PRODUCT_COPY_FILES += \
 	$(CUR_PATH)/Firmware/BT/rtl8761bt_fw:$(TARGET_COPY_OUT_VENDOR)/firmware/rtl8761bt_fw \
 	$(CUR_PATH)/Firmware/BT/rtl8725a_config:$(TARGET_COPY_OUT_VENDOR)/firmware/rtl8725a_config \
 	$(CUR_PATH)/Firmware/BT/rtl8725a_fw:$(TARGET_COPY_OUT_VENDOR)/firmware/rtl8725a_fw \
-	$(CUR_PATH)/Firmware/BT/rtl8822cu_config:$(TARGET_COPY_OUT_VENDOR)/firmware/rtl8822cu_config \
-	$(CUR_PATH)/Firmware/BT/rtl8822cu_fw:$(TARGET_COPY_OUT_VENDOR)/firmware/rtl8822cu_fw \
-	$(CUR_PATH)/Firmware/BT/rtl8822bu_config:$(TARGET_COPY_OUT_VENDOR)/firmware/rtl8822bu_config \
-	$(CUR_PATH)/Firmware/BT/rtl8822bu_fw:$(TARGET_COPY_OUT_VENDOR)/firmware/rtl8822bu_fw \
 
 

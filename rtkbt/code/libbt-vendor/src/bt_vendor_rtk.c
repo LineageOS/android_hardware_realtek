@@ -26,7 +26,7 @@
 
 #undef NDEBUG
 #define LOG_TAG "libbt_vendor"
-#define RTKBT_RELEASE_NAME "20191111_BT_ANDROID_9.0"
+#define RTKBT_RELEASE_NAME "20200422_BT_ANDROID_10.0"
 #include <utils/Log.h>
 #include "bt_vendor_rtk.h"
 #include "upio.h"
@@ -141,10 +141,7 @@ static int Scan_Usb_Devices_For_RTK(char* path){
         }
         /* Check if it is path. */
         if((filestat.st_mode & S_IFDIR) == S_IFDIR){
-            if(!Check_Key_Value(newpath,"idVendor",0x0bda) && \
-                !Check_Key_Value(newpath,"idVendor",0x0b05) && \
-                !Check_Key_Value(newpath,"idVendor",0x04ca) && \
-                !Check_Key_Value(newpath,"idVendor",0x13d3))
+            if(!Check_Key_Value(newpath,"idVendor",0x0bda))
                 continue;
             newpdir =opendir(newpath);
             /*read sub directory*/

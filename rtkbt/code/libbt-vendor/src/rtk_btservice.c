@@ -25,7 +25,7 @@
  ******************************************************************************/
 
 #define LOG_TAG "bt_service"
-#define RTKBT_RELEASE_NAME "20191111_BT_ANDROID_9.0"
+#define RTKBT_RELEASE_NAME "20200422_BT_ANDROID_10.0"
 
 #include <utils/Log.h>
 #include <sys/types.h>
@@ -95,6 +95,7 @@ typedef struct Rtk_Btservice_Info
     timer_t         timer_hcicmd_reply;
     RT_LIST_HEAD    cmdqueue_list;
     pthread_mutex_t cmdqueue_mutex;
+    RT_LIST_HEAD    socket_node_list;
     volatile uint8_t cmdqueue_thread_running;
     volatile uint8_t epoll_thread_running;
     void            (*current_complete_cback)(void *);
@@ -109,17 +110,6 @@ typedef struct Rtk_Service_Data
     void            (*complete_cback)(void *);
 }Rtk_Service_Data;
 
-/*
-typedef struct Rtk_Socket_Data
-{
-    char            type;      //hci,other,inner
-    uint8_t         opcodeh;
-    uint8_t         opcodel;
-    uint8_t         parameter_len;
-    uint8_t         parameter[0];
-}Rtk_Socket_Data;
-*/
-
 typedef struct Rtk_Queue_Data
 {
     RT_LIST_ENTRY   list;
@@ -129,6 +119,12 @@ typedef struct Rtk_Queue_Data
     uint8_t         *parameter;
     void            (*complete_cback)(void *);
 }Rtkqueuedata;
+
+typedef struct Rtk_socket_node
+{
+    RT_LIST_ENTRY   list;
+    int             client_fd;
+}Rtkqueuenode;
 
 extern void rtk_vendor_cmd_to_fw(uint16_t opcode, uint8_t parameter_len, uint8_t* parameter, tINT_CMD_CBACK p_cback);
 static Rtk_Btservice_Info *rtk_btservice = NULL;
@@ -353,6 +349,7 @@ void Rtk_Service_Vendorcmd_Hook(Rtk_Service_Data *RtkData, int client_sock)
 
 static void Rtk_Service_Cmd_Event_Cback(void *p_mem)
 {
+    hcicmd_stop_reply_timer();
     if(p_mem != NULL)
     {
         if(rtk_btservice->current_complete_cback != NULL)
@@ -365,7 +362,6 @@ static void Rtk_Service_Cmd_Event_Cback(void *p_mem)
         }
         rtk_btservice->current_complete_cback = NULL;
         rtk_btservice->opcode = 0;
-        hcicmd_stop_reply_timer();
         sem_post(&rtk_btservice->cmdsend_sem);
     }
 }
@@ -426,8 +422,8 @@ static void* cmdready_thread()
                 rtk_btservice->current_client_sock = desc->client_sock;
                 rtk_btservice->current_complete_cback = desc->complete_cback;
                 rtk_btservice->opcode = desc->opcode;
-                rtk_vendor_cmd_to_fw(desc->opcode, desc->parameter_len, desc->parameter, Rtk_Service_Cmd_Event_Cback);
                 hcicmd_start_reply_timer();
+                rtk_vendor_cmd_to_fw(desc->opcode, desc->parameter_len, desc->parameter, Rtk_Service_Cmd_Event_Cback);
                 if(desc->parameter_len > 0)
                     free(desc->parameter);
             }
@@ -641,6 +637,9 @@ static int rtk_socket_accept(socketfd)
         close(client_sock);
         return -1;
     }
+    Rtkqueuenode* node = (Rtkqueuenode*)malloc(sizeof(Rtkqueuenode));
+    node->client_fd = client_sock;
+    ListAddToTail(&node->list, &rtk_btservice->socket_node_list);
     return 0;
 }
 
@@ -675,6 +674,18 @@ static void *epoll_thread()
                         if(epoll_ctl(rtk_btservice->epoll_fd, EPOLL_CTL_DEL, events[i].data.fd, NULL) == -1)
                         {
                             ALOGE("%s unable to register fd %d to epoll set: %s", __func__, events[i].data.fd, strerror(errno));
+                        }
+                        RT_LIST_HEAD * Head = &(rtk_btservice->socket_node_list);
+                        RT_LIST_ENTRY* Iter = NULL, *Temp = NULL;
+                        Rtkqueuenode* desc = NULL;
+                        LIST_FOR_EACH_SAFELY(Iter, Temp, Head)
+                        {
+                            desc = LIST_ENTRY(Iter, Rtkqueuenode, list);
+                            if(desc && (desc->client_fd == events[i].data.fd)) {
+                              ListDeleteNode(&desc->list);
+                              free(desc);
+                              break;
+                            }
                         }
                         close(events[i].data.fd);
                     }
@@ -787,6 +798,19 @@ void RTK_btservice_thread_stop()
     pthread_join(rtk_btservice->cmdreadythd, NULL);
     pthread_join(rtk_btservice->epollthd, NULL);
     close(rtk_btservice->epoll_fd);
+    //close socket fd connected before
+    RT_LIST_HEAD * Head = &(rtk_btservice->socket_node_list);
+    RT_LIST_ENTRY* Iter = NULL, *Temp = NULL;
+    Rtkqueuenode* desc = NULL;
+    LIST_FOR_EACH_SAFELY(Iter, Temp, Head)
+    {
+        desc = LIST_ENTRY(Iter, Rtkqueuenode, list);
+        if(desc) {
+          close(desc->client_fd);
+          ListDeleteNode(&desc->list);
+          free(desc);
+        }
+    }
     ALOGD("%s end!", __func__);
 }
 
@@ -827,6 +851,9 @@ int RTK_btservice_init()
         ALOGE("%s, errno : %s", __func__, strerror(errno));
         goto fail1;
     }
+
+    RT_LIST_HEAD* head = &rtk_btservice->socket_node_list;
+    ListInitializeHeader(head);
 
     rtk_btservice->epoll_fd = epoll_create(64);
     if (rtk_btservice->epoll_fd == -1) {

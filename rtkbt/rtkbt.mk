@@ -1,4 +1,4 @@
-# RELEASE NAME: 20191111_BT_ANDROID_9.0
+# RELEASE NAME: 20200422_BT_ANDROID_10.0
 # RTKBT_API_VERSION=2.1.1.0
 
 CUR_PATH := hardware/realtek/rtkbt
@@ -31,8 +31,7 @@ endif
 # base bluetooth
 PRODUCT_PACKAGES += \
     Bluetooth \
-    libbt-vendor-realtek \
-    rtkcmd \
+    libbt-vendor \
     audio.a2dp.default \
     bluetooth.default \
     android.hardware.bluetooth@1.0-impl \
@@ -47,7 +46,7 @@ PRODUCT_PROPERTY_OVERRIDES += \
                     persist.vendor.bluetooth.prefferedrole=master \
                     persist.vendor.rtkbtadvdisable=false
 
-PRODUCT_SYSTEM_DEFAULT_PROPERTIES += persist.bluetooth.btsnoopenable=false \
+PRODUCT_SYSTEM_DEFAULT_PROPERTIES += persist.bluetooth.btsnooplogmode=disable \
                     persist.bluetooth.btsnooppath=/data/misc/bluedroid/btsnoop_hci.cfa \
                     persist.bluetooth.btsnoopsize=0xffff \
                     persist.bluetooth.showdeviceswithoutnames=false \

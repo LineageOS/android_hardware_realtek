@@ -1,5 +1,7 @@
 /********************************************************
 SBC Example PLC ANSI-C Source Code
+This is copy from HFP spec, just only for study and demo.
+Please don't use in commercial product.
 File: sbcplc.h
 *****************************************************************************/
 #ifndef SBCPLC_H

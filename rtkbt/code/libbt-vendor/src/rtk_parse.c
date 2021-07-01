@@ -34,7 +34,7 @@
 *
 ******************************************************************************/
 #define LOG_TAG "rtk_parse"
-#define RTKBT_RELEASE_NAME "20191111_BT_ANDROID_9.0"
+#define RTKBT_RELEASE_NAME "20200422_BT_ANDROID_10.0"
 
 #include <utils/Log.h>
 #include <stdlib.h>
@@ -44,6 +44,7 @@
 #include <errno.h>
 #include <signal.h>
 #include <time.h>
+#include <math.h>
 #include <unistd.h>
 #include <string.h>
 #include <ctype.h>
@@ -65,6 +66,51 @@
 #include <sys/syscall.h>
 
 #define RTK_COEX_VERSION "3.0"
+
+//#define RTK_ROLE_SWITCH_RETRY
+
+#ifdef RTK_ROLE_SWITCH_RETRY
+#ifndef MAX_LINKS
+#define MAX_LINKS          7
+#endif
+
+#ifndef BD_ADDR_LEN
+#define BD_ADDR_LEN     6
+typedef uint8_t BD_ADDR[BD_ADDR_LEN];
+#endif
+
+typedef enum {
+  ROLE_SWITCH_COMMAND_NONE,
+  ROLE_SWITCH_COMMAND_PENDING,
+  ROLE_SWITCH_COMMAND_SUCCESS,
+  ROLE_SWITCH_COMMAND_DISALLOW
+} role_switch_state;
+
+/******************************************************************************
+**  role switch monitor structions
+******************************************************************************/
+typedef struct
+{
+    bool             in_use;                 /* TRUE when in use, FALSE when not */
+    role_switch_state          state;
+    BD_ADDR             remote_bd_addr;             /* The BD address of the remote     */
+    bool             isMaster;                 /* is_Master  */
+    unsigned short              handle;              /* Link handle                      */
+    timer_t         timer_hci_role_switch_cmd;                 /* CB Timer Entry */
+    unsigned short               count;              /* role swith event(slave) count                    */
+    time_t                  time;
+    double   diff_s;             /*time diff between two successive role switch (slave)event */
+}role_monitor_cb;
+BD_ADDR EMPTY_ADDR = {0,0,0,0,0,0};
+role_monitor_cb  role_monitor_pool[MAX_LINKS];   /* Role Switch Control Block pool  */
+#define          TIME_LIMIT_FOR_ROLE_SWITCH  (60*5)   /*5 minutes*/
+#define          UNKOWN_HANDLE              (0XFF)
+#define          HCI_CMD_VNDR_ROLESWITCH       0xFCAD
+
+typedef void (*tTIMER_HANDLE_ROLE_SWITCH)(union sigval sigval_value);
+static void rtk_start_role_switch_schedule(role_monitor_cb  * p);
+#endif
+
 
 char invite_req[] = "INVITE_REQ";
 char invite_rsp[] = "INVITE_RSP";
@@ -635,6 +681,7 @@ tRTK_CONN_PROF* allocate_connection_by_handle(uint16_t handle)
     return phci_conn;
 }
 
+
 void init_connection_hash(tRTK_PROF* h5)
 {
     RT_LIST_HEAD* head = &h5->conn_hash;
@@ -922,6 +969,313 @@ void rtk_vendor_cmd_to_fw(uint16_t opcode, uint8_t parameter_len, uint8_t* param
     }
     return ;
 }
+
+
+#ifdef RTK_ROLE_SWITCH_RETRY
+
+static timer_t OsAllocateTimer_role_switch(tTIMER_HANDLE_ROLE_SWITCH timer_callback,role_monitor_cb *p_cb)
+{
+    struct sigevent sigev;
+    timer_t timerid;
+
+    memset(&sigev, 0, sizeof(struct sigevent));
+    sigev.sigev_notify = SIGEV_THREAD;
+    sigev.sigev_notify_function = timer_callback;
+    sigev.sigev_value.sival_ptr = p_cb;
+
+    ALOGD("OsAllocateTimer bt_service sigev.sigev_notify_thread_id = syscall(__NR_gettid)!");
+
+    if (timer_create(CLOCK_REALTIME, &sigev, &timerid) == 0)
+    {
+        return timerid;
+    }
+    else
+    {
+        ALOGE("timer_create error!");
+        return (timer_t)-1;
+    }
+}
+
+static int OsFreeTimer_role_switch(timer_t timerid)
+{
+    int ret = 0;
+    if(timerid == (timer_t)-1) {
+        ALOGE("OsFreeTimer fail timer id error");
+        return -1;
+    }
+    ret = timer_delete(timerid);
+    if(ret != 0)
+        ALOGE("timer_delete fail with errno(%d)", errno);
+
+    return ret;
+}
+
+ static int OsStartTimer_role_switch(timer_t timerid, int msec, int mode)
+ {
+    struct itimerspec itval;
+
+    if(timerid == (timer_t)-1) {
+        ALOGE("OsStartTimer fail timer id error");
+        return -1;
+    }
+    itval.it_value.tv_sec = msec / 1000;
+    itval.it_value.tv_nsec = (long)(msec % 1000) * (1000000L);
+    //ALOGE("OsStartTimer_role_switch  = %ld itval.it_value.tv_nsec = %ld libs_liu",itval.it_value.tv_sec,itval.it_value.tv_nsec);
+    if (mode == 1)
+    {
+        itval.it_interval.tv_sec    = itval.it_value.tv_sec;
+        itval.it_interval.tv_nsec = itval.it_value.tv_nsec;
+    }
+    else
+    {
+        itval.it_interval.tv_sec = 0;
+        itval.it_interval.tv_nsec = 0;
+    }
+
+    //Set the Timer when to expire through timer_settime
+    //ALOGE("OsStartTimer_role_switch  = %ld itval.it_value.tv_nsec = %ld libs_liu end timerid = %ld",itval.it_value.tv_sec,itval.it_value.tv_nsec,(long)timerid);
+    if (timer_settime(timerid, 0, &itval, NULL) != 0)
+    {
+        ALOGE("time_settime error!");
+        return -1;
+    }
+    ALOGI("OsStartTimer_role_switch  = %ld itval.it_value.tv_nsec = %ld",itval.it_value.tv_sec,itval.it_value.tv_nsec);
+
+    return 0;
+
+}
+
+static int OsStopTimer_role_switch(timer_t timerid)
+{
+   return OsStartTimer_role_switch(timerid, 0, 0);
+}
+
+int find_remote_device_by_address(BD_ADDR address){
+    int  index = 0;
+    role_monitor_cb    *p_cb = &(role_monitor_pool[0]);
+    for (index = 0; index < MAX_LINKS; index++,p_cb++){
+        if((p_cb->in_use)&&(!memcmp (p_cb->remote_bd_addr, address, BD_ADDR_LEN))){
+            return index;
+        }
+    }
+    ALOGE( "find_remote_device_by_address  device not found");
+    return -1;
+}
+
+
+int find_pending_role_switch_process(){
+    int  index = 0;
+    role_monitor_cb    *p_cb = &(role_monitor_pool[0]);
+    for (index = 0; index < MAX_LINKS; index++,p_cb++){
+        if((p_cb->in_use)&&(p_cb->state == ROLE_SWITCH_COMMAND_PENDING)){
+            return index;
+        }
+    }
+    ALOGE( "find_pending_role_switch_process  device not found");
+    return -1;
+}
+
+
+int allocate_role_switch_pool_by_handle(uint16_t handle,BD_ADDR remote_address)
+{
+    int  index = 0;
+    role_monitor_cb    *p_cb = &(role_monitor_pool[0]);
+    /*check there is no same address exist*/
+    if(((index = find_remote_device_by_address(remote_address)) != -1)){
+        if(role_monitor_pool[index].handle == UNKOWN_HANDLE){
+            ALOGI( "allocate_role_switch_pool_by_handle slot has been exist and is waiting update\n");
+            role_monitor_pool[index].handle = handle;
+            return index;
+        }else{
+            ALOGE( "allocate_role_switch_pool_by_handle slot has been exist it ,return \n");
+            return -1;
+        }
+    }
+    for (index = 0; index < MAX_LINKS; index++,p_cb++){
+        if(!(p_cb->in_use)){
+            p_cb->count = 0;
+            p_cb->diff_s = 0;
+            p_cb->handle = handle;
+            p_cb->time = 0;
+            p_cb->in_use = TRUE;
+            p_cb->timer_hci_role_switch_cmd = (timer_t)-1;
+            memcpy(p_cb->remote_bd_addr,remote_address,BD_ADDR_LEN);
+            return index;
+        }
+    }
+    ALOGE( "allocate_role_switch_pool_by_handle  no slot found");
+    return -1;
+
+}
+
+static void rtk_record_connection_info(uint8_t* p){
+    uint8_t status = 0;
+    uint16_t handle = 0;
+    int index = 0;
+    BD_ADDR remote_address;
+    status = *p++;
+    if(status != 0){
+        ALOGE("rtk_record_connection_info handle = 0x%x status = %d connection failed! ignore !",handle,status);
+        return;
+    }
+    STREAM_TO_UINT16 (handle, p);
+    //ALOGE("rtk_record_connection_info handle = 0x%x",handle);
+    memcpy(remote_address,p,BD_ADDR_LEN);
+    //ALOGE("rtk_record_connection_info remote_address = %x %x %x %x %x %x libs_liu",remote_address[0],remote_address[1],
+     //   remote_address[2],remote_address[3],remote_address[4],remote_address[5]);
+    index = allocate_role_switch_pool_by_handle(handle,remote_address);
+    if(index <0){
+        ALOGE("rtk_record_connection_info index = 0x%x",index);
+        return;
+    }
+    ALOGD("rtk_record_connection_info index = 0x%x",index);
+}
+
+static void rtk_connection_info_clear(uint8_t* p){
+
+    uint8_t status = 0;
+    uint16_t handle = 0;
+    status = *p++;
+    STREAM_TO_UINT16(handle, p);
+    ALOGE("rtk_connection_info_clear handle = 0x%x libs_liu",handle);
+
+    int  index = 0;
+    role_monitor_cb    *p_cb = &(role_monitor_pool[0]);
+    for (index = 0; index < MAX_LINKS; index++,p_cb++){
+        if((p_cb->in_use)&&(p_cb->handle == handle)){
+            //ALOGE("rtk_connection_info_clear  begin to clear this slot  p_cb->timer_hci_role_switch_cmd = %ld",(long)p_cb->timer_hci_role_switch_cmd);
+            p_cb->in_use = FALSE;
+            p_cb->state = ROLE_SWITCH_COMMAND_NONE;
+            p_cb->handle = 0;
+            p_cb->diff_s = 0;
+            p_cb->count = 0;
+            p_cb->isMaster = FALSE;
+            OsStopTimer_role_switch(p_cb->timer_hci_role_switch_cmd);
+            OsFreeTimer_role_switch(p_cb->timer_hci_role_switch_cmd);
+            p_cb->timer_hci_role_switch_cmd = (timer_t)-1;
+            memcpy(p_cb->remote_bd_addr,EMPTY_ADDR,BD_ADDR_LEN);
+            return;
+        }
+    }
+    ALOGD( "rtk_connection_info_clear  done");
+    return ;
+}
+
+static void Rtk_Role_switch_Event_Cback(void *arg)
+{
+    if(arg != NULL)
+    {
+        HC_BT_HDR  *p_buf = NULL;
+        p_buf = (HC_BT_HDR *)arg;
+        uint8_t *p = p_buf->data;
+        ALOGE( " Rtk_Role_switch_Event_Cback event_code = %d length = %d",p[0],p[1]);
+
+        /*find out which one inititor this process*/
+        int index = find_pending_role_switch_process();
+        if(index == -1)
+            return;
+        role_monitor_cb    *p_cb = &(role_monitor_pool[index]);
+        p_cb->state = ROLE_SWITCH_COMMAND_SUCCESS;
+        if(p[5] == 0x0c){
+            p_cb->state = ROLE_SWITCH_COMMAND_DISALLOW;
+            ALOGE( " Rtk_Role_switch_Event_Cback  command is disallowed libs_liu");
+            p_cb->count  = 1;
+            rtk_start_role_switch_schedule(p_cb);
+        }
+
+    }else{
+        ALOGE("%s Rtk_Role_switch_Event_Cback arg == NULL, it should not happend", __func__);
+    }
+}
+
+
+
+static void rtk_send_role_switch_handler(union sigval sigev_value){
+     role_monitor_cb * p_cb = (role_monitor_cb *)sigev_value.sival_ptr;
+     if(!p_cb->in_use){
+        ALOGE( "rtk_send_role_switch_handler  p_cb now is not in use ,return !");
+        return;
+     }
+     p_cb->state = ROLE_SWITCH_COMMAND_PENDING;
+    /*begin to send hci command to controller*/
+    uint8_t param_len = 7;
+    uint8_t param[param_len];
+    memcpy(param,p_cb->remote_bd_addr,BD_ADDR_LEN);
+    param[param_len-1] = 0;
+    rtk_vendor_cmd_to_fw(HCI_CMD_VNDR_ROLESWITCH,param_len , param, Rtk_Role_switch_Event_Cback);
+    /*remember to free the timer*/
+    OsStopTimer_role_switch(p_cb->timer_hci_role_switch_cmd);
+    OsFreeTimer_role_switch(p_cb->timer_hci_role_switch_cmd);
+    p_cb->timer_hci_role_switch_cmd = (timer_t)-1;
+
+}
+
+static void rtk_start_role_switch_schedule(role_monitor_cb  * p){
+    role_monitor_cb *p_cb = p;
+    double time_out;
+    if(p_cb == NULL){
+        ALOGE("rtk_start_role_switch_schedule  p_cb==NULL");
+        return;
+    }
+    if(p_cb->diff_s > TIME_LIMIT_FOR_ROLE_SWITCH){
+        ALOGE("rtk_start_role_switch_schedule p_cb->diff_s is larger then threshold value");
+        p_cb->count = 0;
+    }
+    time_out = pow((double)2,(double)(p_cb->count))*500;
+    if(time_out > TIME_LIMIT_FOR_ROLE_SWITCH*1000){
+        ALOGE("rtk_start_role_switch_schedule time_out is too large,do not try again");
+    }
+
+    p_cb->timer_hci_role_switch_cmd = OsAllocateTimer_role_switch(rtk_send_role_switch_handler,p_cb);
+    if(p_cb->timer_hci_role_switch_cmd == (timer_t)-1) {
+        ALOGE("%s : alloc reply timer fail!", __func__);
+        return;
+    }
+    ALOGE("%s : time_out = %lf", __func__,time_out);
+    OsStartTimer_role_switch(p_cb->timer_hci_role_switch_cmd, (int)time_out, 1);
+}
+
+static void rtk_handle_role_change_evt(uint8_t* p){
+    uint8_t status = 0;
+    int index = 0;
+    uint8_t new_role = 0;
+    status = *p++;
+    BD_ADDR remote_address;
+    ALOGE("rtk_handle_role_change_evt  status = %d",status);
+    memcpy(remote_address,p,BD_ADDR_LEN);
+    ALOGE("rtk_handle_role_change_evt remote_address = %x %x %x %x %x %x",remote_address[0],remote_address[1],
+        remote_address[2],remote_address[3],remote_address[4],remote_address[5]);
+    p += BD_ADDR_LEN;
+    new_role = *p;
+    if(new_role == 0){
+        ALOGE("rtk_handle_role_change_evt  now is Mastar ,do nothing");
+    }else{
+        ALOGE("rtk_handle_role_change_evt  now is slave ");
+        /*find the slot */
+        index = find_remote_device_by_address(remote_address);
+        if(index < 0){
+            ALOGE("rtk_handle_role_change_evt device not found ,maybe role change comming first and alloc one libs_liu");
+            index = allocate_role_switch_pool_by_handle(UNKOWN_HANDLE,remote_address);
+             if(index <0){
+                ALOGE("allocate_role_switch_pool_by_handle failed  index = 0x%x libs_liu",index);
+                return;
+             }
+        }
+        /*get time_r*/
+        role_monitor_cb  * p_cb = &(role_monitor_pool[index]);
+        time_t now = time(NULL);
+        p_cb->diff_s = difftime(now,p_cb->time);
+        ALOGE("rtk_handle_role_change_evt p_cb->diff_s =%lf  libs_liu",p_cb->diff_s);
+        p_cb->time = now;
+        p_cb->count++;
+        p_cb->isMaster = FALSE;
+        /*begin to schedule timer*/
+        rtk_start_role_switch_schedule(p_cb);
+    }
+
+}
+
+#endif
 
 void rtk_notify_profileinfo_to_fw()
 {
@@ -2203,6 +2557,9 @@ void rtk_parse_init(void)
         ALOGE("UDP socket fail, try to use rtk_btcoex chrdev");
         open_btcoex_chrdev();
     }
+#ifdef RTK_ROLE_SWITCH_RETRY
+    memset(role_monitor_pool,0,sizeof(role_monitor_pool));
+#endif
 }
 
 void rtk_parse_cleanup()
@@ -2758,11 +3115,24 @@ void rtk_parse_internal_event_intercept(uint8_t *p_msg)
         case HCI_CONNECTION_COMP_EVT:
         case HCI_ESCO_CONNECTION_COMP_EVT:
             rtk_handle_connection_complete_evt(p);
+#ifdef RTK_ROLE_SWITCH_RETRY
+            /*update role switch pool ,record this info*/
+            rtk_record_connection_info(p);
+#endif
             break;
 
         case HCI_DISCONNECTION_COMP_EVT:
             rtk_handle_disconnect_complete_evt(p);
+#ifdef RTK_ROLE_SWITCH_RETRY
+            rtk_connection_info_clear(p);
+#endif
             break;
+
+#ifdef RTK_ROLE_SWITCH_RETRY
+        case HCI_ROLE_CHANGE_EVT:
+            rtk_handle_role_change_evt(p);
+            break;
+#endif
 
         case HCI_VENDOR_SPECIFIC_EVT:
         {

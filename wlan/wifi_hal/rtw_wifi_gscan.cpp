@@ -36,7 +36,7 @@
 #define LOG_TAG  "WifiHAL"
 //#define LOG_NDEBUG 0         //uncomment to enable verbose logging
 
-#include <utils/Log.h>
+#include <log/log.h>
 
 #include "wifi_hal.h"
 #include "common.h"

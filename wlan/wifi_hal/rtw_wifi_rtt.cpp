@@ -38,7 +38,7 @@
 
 #define LOG_TAG  "WifiHAL"
 
-#include <utils/Log.h>
+#include <log/log.h>
 #include <utils/String8.h>
 
 #include "wifi_hal.h"

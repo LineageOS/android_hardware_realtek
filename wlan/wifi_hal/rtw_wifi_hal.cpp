@@ -37,16 +37,21 @@
 #include <dirent.h>
 #include <net/if.h>
 
+#include <sys/types.h>
+#include <unistd.h>
+
 #include "sync.h"
 
 #define LOG_TAG  "WifiHAL"
 
-#include <utils/Log.h>
+#include <log/log.h>
 
+#include "version.h"
 #include "wifi_hal.h"
 #include "common.h"
 #include "cpp_bindings.h"
 #include "rtt.h"
+
 /*
  BUGBUG: normally, libnl allocates ports for all connections it makes; but
  being a static library, it doesn't really know how many other netlink connections
@@ -209,7 +214,7 @@ wifi_error wifi_initialize(wifi_handle *handle)
 {
     srand(getpid());
 
-    ALOGI("Initializing wifi");
+	ALOGI("Initializing wifi, version : %s", RTW_WIFI_HAL_VERSION);
     hal_info *info = (hal_info *)malloc(sizeof(hal_info));
     if (info == NULL) {
         ALOGE("Could not allocate hal_info");
@@ -1240,12 +1245,8 @@ wifi_error wifi_get_concurrency_matrix(wifi_interface_handle handle, int set_siz
 
 wifi_error wifi_set_scanning_mac_oui(wifi_interface_handle handle, oui scan_oui)
 {
-#if 0
     SetPnoMacAddrOuiCommand command(handle, scan_oui);
     return (wifi_error)command.start();
-#endif
-	return WIFI_SUCCESS;
-
 }
 
 wifi_error wifi_set_nodfs_flag(wifi_interface_handle handle, u32 nodfs)
@@ -1256,11 +1257,8 @@ wifi_error wifi_set_nodfs_flag(wifi_interface_handle handle, u32 nodfs)
 
 wifi_error wifi_set_country_code(wifi_interface_handle handle, const char *country_code)
 {
-#if 0
     SetCountryCodeCommand command(handle, country_code);
     return (wifi_error) command.requestResponse();
-#endif
-	return WIFI_SUCCESS ;
 }
 
 static wifi_error wifi_start_rssi_monitoring(wifi_request_id id, wifi_interface_handle
@@ -1281,7 +1279,7 @@ static wifi_error wifi_start_rssi_monitoring(wifi_request_id id, wifi_interface_
         cmd->releaseRef();
         return result;
     }
-    return result;
+    return WIFI_ERROR_UNKNOWN;
 }
 
 static wifi_error wifi_stop_rssi_monitoring(wifi_request_id id, wifi_interface_handle iface)
@@ -1300,7 +1298,8 @@ static wifi_error wifi_stop_rssi_monitoring(wifi_request_id id, wifi_interface_h
         cmd->releaseRef();
         return WIFI_SUCCESS;
     }
-    return wifi_cancel_cmd(id, iface);
+	wifi_cancel_cmd(id, iface);
+    return WIFI_ERROR_UNKNOWN;
 }
 
 static wifi_error wifi_get_packet_filter_capabilities(wifi_interface_handle handle,
@@ -1333,11 +1332,8 @@ static wifi_error wifi_set_packet_filter(wifi_interface_handle handle,
 
 static wifi_error wifi_configure_nd_offload(wifi_interface_handle handle, u8 enable)
 {
-#if 0
     SetNdoffloadCommand command(handle, enable);
     return (wifi_error) command.requestResponse();
-#endif
-	return WIFI_SUCCESS;
 }
 
 static wifi_error wifi_get_wake_reason_stats (wifi_interface_handle handle,
@@ -1345,5 +1341,4 @@ static wifi_error wifi_get_wake_reason_stats (wifi_interface_handle handle,
                                 
  	return WIFI_SUCCESS;
 }
-
 /////////////////////////////////////////////////////////////////////////////

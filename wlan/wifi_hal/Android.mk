@@ -26,22 +26,24 @@ LOCAL_CFLAGS := \
     -Wno-unused-function \
     -Wno-unused-parameter \
     -Wno-unused-private-field \
-    -Wno-unused-variable \
+    -Wno-unused-variable 
+#    -DCONFIG_WIFI_HAL_DEBUG
 
 LOCAL_C_INCLUDES += \
 	external/libnl/include \
 	$(call include-path-for, libhardware_legacy)/hardware_legacy \
 	external/wpa_supplicant_8/src/drivers
 
+LOCAL_HEADER_LIBRARIES := libutils_headers liblog_headers
 LOCAL_SRC_FILES := \
-	wifi_hal.cpp \
-	rtt.cpp \
+	rtw_wifi_hal.cpp \
+	rtw_wifi_rtt.cpp \
 	common.cpp \
 	cpp_bindings.cpp \
-	gscan.cpp \
-	link_layer_stats.cpp \
-	wifi_logger.cpp \
-	wifi_offload.cpp
+	rtw_wifi_gscan.cpp \
+	rtw_wifi_llstats.cpp \
+	rtw_wifi_logger.cpp \
+	rtw_wifi_offload.cpp
 
 LOCAL_MODULE := libwifi-hal-rtk
 LOCAL_PROPRIETARY_MODULE := true

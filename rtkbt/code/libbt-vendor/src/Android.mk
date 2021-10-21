@@ -2,7 +2,7 @@ LOCAL_PATH := $(call my-dir)
 
 include $(CLEAR_VARS)
 
-BDROID_DIR := $(TOP_DIR)system/bt
+BDROID_DIR := $(TOP_DIR)packages/modules/Bluetooth/system
 
 LOCAL_SRC_FILES := \
         rtk_socket.c \

@@ -30,7 +30,7 @@ endif
 
 # base bluetooth
 PRODUCT_PACKAGES += \
-    Bluetooth \
+    com.android.bluetooth \
     libbt-vendor \
     android.hardware.bluetooth@1.0-impl \
     android.hidl.memory@1.0-impl \

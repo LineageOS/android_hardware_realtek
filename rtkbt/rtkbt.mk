@@ -32,12 +32,9 @@ endif
 PRODUCT_PACKAGES += \
     Bluetooth \
     libbt-vendor \
-    audio.a2dp.default \
-    bluetooth.default \
     android.hardware.bluetooth@1.0-impl \
     android.hidl.memory@1.0-impl \
-    android.hardware.bluetooth@1.0-service \
-    android.hardware.bluetooth@1.0-service.rc \
+    android.hardware.bluetooth@1.0-service
 
 
 PRODUCT_PROPERTY_OVERRIDES += \

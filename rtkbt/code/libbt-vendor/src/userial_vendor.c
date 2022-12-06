@@ -36,6 +36,7 @@
 #include "userial_vendor.h"
 #include "rtk_socket.h"
 #include <cutils/sockets.h>
+#include <hci_layer.h>
 
 
 #ifdef CONFIG_SCO_OVER_HCI

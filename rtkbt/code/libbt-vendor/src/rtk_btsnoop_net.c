@@ -18,6 +18,7 @@
 #define LOG_TAG "rtk_btsnoop_net"
 #include "rtk_btsnoop_net.h"
 #include <unistd.h>
+#include <hci_layer.h>
 
 #define RTK_NO_INTR(fn)  do {} while ((fn) == -1 && errno == EINTR)
 

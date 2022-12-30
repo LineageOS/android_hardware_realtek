@@ -48,7 +48,7 @@
 #include <arpa/inet.h>
 #include <string.h>
 #include <linux/wait.h>
-#include <hci_layer.h>
+#include <hci_layer_legacy.h>
 
 #include "hci_h5_int.h"
 #include "bt_skbuff.h"

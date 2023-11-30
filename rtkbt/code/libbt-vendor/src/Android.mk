@@ -4,6 +4,10 @@ include $(CLEAR_VARS)
 
 BDROID_DIR := $(TOP_DIR)packages/modules/Bluetooth/system
 
+LOCAL_CFLAGS := \
+        -Wno-deprecated-non-prototype \
+        -Wno-implicit-int
+
 LOCAL_SRC_FILES := \
         rtk_socket.c \
         bt_vendor_rtk.c \

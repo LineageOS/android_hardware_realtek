@@ -1,4 +1,22 @@
 {
-  "comments": [],
+  "comments": [
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "090d874e_51abaf04",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 2644
+      },
+      "writtenOn": "2023-11-30T22:25:03Z",
+      "side": 1,
+      "message": "There is a reason I didn\u0027t +1 this; I only compile tested. I recently moved and haven\u0027t set up my atv testing lab yet. \nI am new at writing blueprints. I hope I got all the properties set correctly but this may require further patching for bluetooth to actually work.",
+      "revId": "ea8794ebe891e5b8a690dde9444f260359c1cfe7",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    }
+  ],
   "submitRequirementResults": []
 }

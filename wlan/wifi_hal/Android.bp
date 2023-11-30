@@ -1,0 +1,40 @@
+//
+// Copyright (C) 2023 The LineageOS Project
+//
+// SPDX-License-Identifier: Apache-2.0
+//
+
+
+cc_library_static {
+    name: "libwifi-hal-rtk",
+    vendor_available: true,
+    compile_multilib: "both",
+    srcs: [
+        "rtw_wifi_hal.cpp",
+        "rtw_wifi_rtt.cpp",
+        "common.cpp",
+        "cpp_bindings.cpp",
+        "rtw_wifi_gscan.cpp",
+        "rtw_wifi_llstats.cpp",
+        "rtw_wifi_logger.cpp",
+        "rtw_wifi_offload.cpp",
+    ],
+
+    include_dirs: [
+        "external/libnl/include",
+        "hardware/libhardware_legacy/include/hardware_legacy",
+        "external/wpa_supplicant_8/src/drivers",
+    ],
+
+    cflags: ["-Wno-unused-parameter",
+        "-Wall" ,
+        "-Werror",
+        "-Wno-format",
+        "-Wno-reorder",
+        "-Wno-unused-function",
+        "-Wno-unused-parameter",
+        "-Wno-unused-private-field",
+        "-Wno-unused-variable",
+    ],
+    header_libs: ["libutils_headers", "liblog_headers"],
+}

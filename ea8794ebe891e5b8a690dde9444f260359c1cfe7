@@ -16,6 +16,24 @@
       "message": "There is a reason I didn\u0027t +1 this; I only compile tested. I recently moved and haven\u0027t set up my atv testing lab yet. \nI am new at writing blueprints. I hope I got all the properties set correctly but this may require further patching for bluetooth to actually work.",
       "revId": "ea8794ebe891e5b8a690dde9444f260359c1cfe7",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "09f9e469_25fc9ae3",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 16185
+      },
+      "writtenOn": "2023-12-01T00:09:11Z",
+      "side": 1,
+      "message": "literally had noted dopinder had build failures an hour before when built the entire family.\n\nWas like a 5 minute rebuild to verify.\n\nWifi service now builds and doesn\u0027t tank on boot.",
+      "parentUuid": "090d874e_51abaf04",
+      "revId": "ea8794ebe891e5b8a690dde9444f260359c1cfe7",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ],
   "submitRequirementResults": []

@@ -855,8 +855,7 @@ static int userial_coex_recv_data_handler(unsigned char * recv_buffer, int total
     unsigned char * p_data = recv_buffer;
     int length = total_length;
     HC_BT_HDR * p_buf;
-    uint8_t boundary_flag;
-    uint16_t len, handle, acl_length, l2cap_length;
+    uint16_t len;
     switch (coex_packet_recv_state) {
         case RTKBT_PACKET_IDLE:
             coex_packet_bytes_need = 1;
@@ -952,26 +951,11 @@ static int userial_coex_recv_data_handler(unsigned char * recv_buffer, int total
                     if(rtk_parse_manager)
                         rtk_parse_manager->rtk_parse_internal_event_intercept(coex_resvered_buffer);
                 break;
-
-                case DATA_TYPE_ACL:
-                    p_buf->event = MSG_HC_TO_STACK_HCI_ACL;
-                    handle =  *(uint16_t *)coex_resvered_buffer;
-                    acl_length = *(uint16_t *)&coex_resvered_buffer[2];
-                    l2cap_length = *(uint16_t *)&coex_resvered_buffer[4];
-                    boundary_flag = RTK_GET_BOUNDARY_FLAG(handle);
-                    if(rtk_parse_manager)
-                        rtk_parse_manager->rtk_parse_l2cap_data(coex_resvered_buffer, 0);
-                break;
-
-                case DATA_TYPE_SCO:
-                    p_buf->event = MSG_HC_TO_STACK_HCI_SCO;
-                break;
-
                 default:
                     p_buf->event = MSG_HC_TO_STACK_HCI_ERR;
                 break;
             }
-            rtk_btsnoop_capture(p_buf, true);
+            rtk_btsnoop_capture(p_buf);
         }
         break;
 
@@ -994,8 +978,7 @@ static void userial_coex_send_data_handler(unsigned char * send_buffer, int tota
     type = send_buffer[0];
     int length = total_length;
     HC_BT_HDR * p_buf;
-    uint8_t boundary_flag;
-    uint16_t len, handle, acl_length, l2cap_length;
+    uint16_t len;
 
     len = BT_HC_HDR_SIZE + (length - 1);
     uint8_t packet[len];
@@ -1011,27 +994,12 @@ static void userial_coex_send_data_handler(unsigned char * send_buffer, int tota
             if(rtk_parse_manager)
                 rtk_parse_manager->rtk_parse_command(&send_buffer[1]);
         break;
-
-        case DATA_TYPE_ACL:
-            p_buf->event = MSG_STACK_TO_HC_HCI_ACL;
-            handle =  *(uint16_t *)&send_buffer[1];
-            acl_length = *(uint16_t *)&send_buffer[3];
-            l2cap_length = *(uint16_t *)&send_buffer[5];
-            boundary_flag = RTK_GET_BOUNDARY_FLAG(handle);
-            if(rtk_parse_manager)
-                rtk_parse_manager->rtk_parse_l2cap_data(&send_buffer[1], 1);
-
-        break;
-
-        case DATA_TYPE_SCO:
-            p_buf->event = MSG_STACK_TO_HC_HCI_SCO;
-        break;
         default:
             p_buf->event = 0;
             ALOGE("%s invalid data type: %d", __func__, type);
         break;
     }
-    rtk_btsnoop_capture(p_buf, false);
+    rtk_btsnoop_capture(p_buf);
 }
 
 static void userial_coex_handler(void *context)

@@ -49,7 +49,7 @@
 
 void rtk_btsnoop_open(void);
 void rtk_btsnoop_close(void);
-void rtk_btsnoop_capture(const HC_BT_HDR *p_buf, bool is_rcvd);
+void rtk_btsnoop_capture(const HC_BT_HDR *p_buf);
 
 void rtk_btsnoop_net_open();
 void rtk_btsnoop_net_close();

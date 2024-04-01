@@ -180,7 +180,7 @@ static void rtk_btsnoop_write_packet(serial_data_type_t type, const uint8_t *pac
     pthread_mutex_unlock(&btsnoop_log_lock);
 }
 
-void rtk_btsnoop_capture(const HC_BT_HDR *p_buf, bool is_rcvd) {
+void rtk_btsnoop_capture(const HC_BT_HDR *p_buf) {
   const uint8_t *p = (const uint8_t *)(p_buf + 1) + p_buf->offset;
 
   if (hci_btsnoop_fd == -1)
@@ -191,14 +191,6 @@ void rtk_btsnoop_capture(const HC_BT_HDR *p_buf, bool is_rcvd) {
     if((*(p + 3) == 0x94) && (*(p + 4) == 0xfc) && (*(p + 5) == 0x00)&&(rtkbt_h5logfilter&1)){}
     else
       rtk_btsnoop_write_packet(HCI_EVENT_PKT, p, false);
-      break;
-    case MSG_HC_TO_STACK_HCI_ACL:
-    case MSG_STACK_TO_HC_HCI_ACL:
-      rtk_btsnoop_write_packet(HCI_ACLDATA_PKT, p, is_rcvd);
-      break;
-    case MSG_HC_TO_STACK_HCI_SCO:
-    case MSG_STACK_TO_HC_HCI_SCO:
-      rtk_btsnoop_write_packet(HCI_SCODATA_PKT, p, is_rcvd);
       break;
     case MSG_STACK_TO_HC_HCI_CMD:
       if(((rtkbt_h5logfilter & 1) == 0) || (*p != 0x94) || (*(p + 1) != 0xfc))

@@ -16,6 +16,23 @@
       "message": "Fixes build on dopinder. I have not tested whether bluetooth works.",
       "revId": "efac17d339cc6e11a6fc54f61f9b823c9d776fb5",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "19139336_a8562ca6",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 16185
+      },
+      "writtenOn": "2024-04-11T22:25:10Z",
+      "side": 1,
+      "message": "works on dopinder",
+      "revId": "efac17d339cc6e11a6fc54f61f9b823c9d776fb5",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }

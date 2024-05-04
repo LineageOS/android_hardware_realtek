@@ -22,12 +22,6 @@ PRODUCT_COPY_FILES += \
        $(CUR_PATH)/system/etc/permissions/android.hardware.bluetooth_le.xml:system/etc/permissions/android.hardware.bluetooth_le.xml \
        $(CUR_PATH)/system/etc/permissions/android.hardware.bluetooth.xml:system/etc/permissions/android.hardware.bluetooth.xml \
 
-ifeq ($(BOARD_HAVE_BLUETOOTH_RTK_TV), true)
-PRODUCT_COPY_FILES += \
-        $(CUR_PATH)/vendor/usr/keylayout/Vendor_005d_Product_0001.kl:vendor/usr/keylayout/Vendor_005d_Product_0001.kl \
-        $(CUR_PATH)/vendor/usr/keylayout/Vendor_005d_Product_0002.kl:vendor/usr/keylayout/Vendor_005d_Product_0002.kl
-endif
-
 # base bluetooth
 PRODUCT_PACKAGES += \
     libbt-vendor \

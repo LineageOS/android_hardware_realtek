@@ -1501,9 +1501,19 @@ static uint8_t h5_complete_rx_pkt(tHCI_H5_CB *h5)
     //H5LogMsg("h5_complete_rx_pkt, pkt_type = %d", pkt_type);
     switch (pkt_type)
     {
+        case HCI_ACLDATA_PKT:
+            pass_up = 1;
+            eventtype = MSG_HC_TO_STACK_HCI_ACL;
+        break;
+
         case HCI_EVENT_PKT:
             pass_up = 1;
             eventtype = MSG_HC_TO_STACK_HCI_EVT;
+            break;
+
+        case HCI_SCODATA_PKT:
+            pass_up = 1;
+            eventtype = MSG_HC_TO_STACK_HCI_SCO;
             break;
         case HCI_COMMAND_PKT:
             pass_up = 1;

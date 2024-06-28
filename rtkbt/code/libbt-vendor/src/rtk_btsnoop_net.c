@@ -16,6 +16,7 @@
  *
  ******************************************************************************/
 #define LOG_TAG "rtk_btsnoop_net"
+#include "hci_definitions.h"
 #include "rtk_btsnoop_net.h"
 #include <unistd.h>
 #include <hci_layer_legacy.h>

@@ -50,6 +50,7 @@
 #include <linux/wait.h>
 #include <hci_layer_legacy.h>
 
+#include "hci_definitions.h"
 #include "hci_h5_int.h"
 #include "bt_skbuff.h"
 #include "bt_list.h"

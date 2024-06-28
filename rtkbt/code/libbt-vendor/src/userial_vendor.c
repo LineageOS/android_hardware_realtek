@@ -32,6 +32,7 @@
 #include <errno.h>
 #include <stdio.h>
 #include <sys/eventfd.h>
+#include "hci_definitions.h"
 #include "userial.h"
 #include "userial_vendor.h"
 #include "rtk_socket.h"

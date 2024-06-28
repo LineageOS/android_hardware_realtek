@@ -40,6 +40,7 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <time.h>
+#include "hci_definitions.h"
 #include "hci_h5_int.h"
 #include <utils/Log.h>
 #include <sys/stat.h>

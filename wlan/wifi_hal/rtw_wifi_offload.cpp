@@ -29,8 +29,6 @@
 #include <netlink/object-api.h>
 #include <netlink/netlink.h>
 #include <netlink/socket.h>
-#include <netlink-private/object-api.h>
-#include <netlink-private/types.h>
 
 
 #include "nl80211_copy.h"

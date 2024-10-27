@@ -16,6 +16,23 @@
       "message": "Dont have dopinder so can\u0027t test.",
       "revId": "ff2dd0825a26fd90e4ec5061cac932751845c6aa",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "8ecc4359_2fb56a46",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 3917
+      },
+      "writtenOn": "2024-10-27T13:40:01Z",
+      "side": 1,
+      "message": "Also requires: \ngit revert 4000eead9dd2ff7293d701ce7da0798cfcfff60f in hardware/libhardware_legacy",
+      "revId": "ff2dd0825a26fd90e4ec5061cac932751845c6aa",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }

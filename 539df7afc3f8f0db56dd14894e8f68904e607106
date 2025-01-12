@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "d74bc418_e11777ef",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 3
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 13648
+      },
+      "writtenOn": "2025-01-12T08:21:26Z",
+      "side": 1,
+      "message": "FYI, vendor_available is not the same as vendor/soc_specific.",
+      "revId": "539df7afc3f8f0db56dd14894e8f68904e607106",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    }
+  ]
+}

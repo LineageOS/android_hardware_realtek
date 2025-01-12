@@ -16,6 +16,24 @@
       "message": "should be vendor / soc_specific.",
       "revId": "f6c8f7addb13667237379aa7c6daa7c944f44c13",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "f4f57b44_1028446e",
+        "filename": "wlan/wpa_supplicant_8_lib/Android.bp",
+        "patchSetId": 3
+      },
+      "lineNbr": 9,
+      "author": {
+        "id": 13648
+      },
+      "writtenOn": "2025-01-12T09:40:36Z",
+      "side": 1,
+      "message": "...and also \"proprietary\".\n\nIn sum, \"{proprietary,soc_specific,vendor} : true\"\n\"vendor_available: true\" is used for a different case.",
+      "parentUuid": "cd2eabfd_a35d8440",
+      "revId": "f6c8f7addb13667237379aa7c6daa7c944f44c13",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }

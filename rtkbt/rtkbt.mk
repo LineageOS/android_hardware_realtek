@@ -1,6 +1,8 @@
 # RELEASE NAME: 20200422_BT_ANDROID_10.0
 # RTKBT_API_VERSION=2.1.1.0
 
+PRODUCT_SOONG_NAMESPACES += hardware/realtek/rtkbt
+
 CUR_PATH := hardware/realtek/rtkbt
 
 BOARD_HAVE_BLUETOOTH := true

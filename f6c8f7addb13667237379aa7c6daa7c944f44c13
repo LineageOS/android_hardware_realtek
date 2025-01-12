@@ -34,6 +34,24 @@
       "parentUuid": "cd2eabfd_a35d8440",
       "revId": "f6c8f7addb13667237379aa7c6daa7c944f44c13",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "15d73fdf_5a65d8b9",
+        "filename": "wlan/wpa_supplicant_8_lib/Android.bp",
+        "patchSetId": 3
+      },
+      "lineNbr": 9,
+      "author": {
+        "id": 17401
+      },
+      "writtenOn": "2025-01-12T09:50:14Z",
+      "side": 1,
+      "message": "Done",
+      "parentUuid": "f4f57b44_1028446e",
+      "revId": "f6c8f7addb13667237379aa7c6daa7c944f44c13",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }

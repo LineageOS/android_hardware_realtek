@@ -1,0 +1,79 @@
+//
+// Copyright (C) 2025 The LineageOS Project
+//
+// SPDX-License-Identifier: Apache-2.0
+//
+
+soong_namespace {}
+
+cc_library {
+    name: "libbt-vendor",
+    vendor: true,
+    compile_multilib: "both",
+    srcs: [
+        "code/libbt-vendor/src/rtk_socket.c",
+        "code/libbt-vendor/src/bt_vendor_rtk.c",
+        "code/libbt-vendor/src/hardware.c",
+        "code/libbt-vendor/src/userial_vendor.c",
+        "code/libbt-vendor/src/upio.c",
+        "code/libbt-vendor/src/bt_list.c",
+        "code/libbt-vendor/src/bt_skbuff.c",
+        "code/libbt-vendor/src/hci_h5.c",
+        "code/libbt-vendor/src/rtk_parse.c",
+        "code/libbt-vendor/src/rtk_btservice.c",
+        "code/libbt-vendor/src/hardware_uart.c",
+        "code/libbt-vendor/src/hardware_usb.c",
+        "code/libbt-vendor/src/rtk_heartbeat.c",
+        "code/libbt-vendor/src/rtk_poll.c",
+        "code/libbt-vendor/src/rtk_btsnoop_net.c",
+    ],
+
+    include_dirs: [
+        "packages/modules/Bluetooth/system/hci/include",
+    ],
+
+    local_include_dirs: [
+        "code/libbt-vendor/include/",
+        "code/libbt-vendor/codec/sbc",
+        "code/libbt-vendor/codec/plc",
+    ],
+
+    shared_libs: [
+        "liblog",
+        "libutils",
+        "libcutils",
+    ],
+}
+
+cc_library_static {
+    name: "libbt-codec",
+    vendor: true,
+    compile_multilib: "both",
+    srcs: [
+        "code/libbt-vendor/codec/plc/sbcplc.c",
+        "code/libbt-vendor/codec/sbc/sbc.c",
+        "code/libbt-vendor/codec/sbc/sbc_primitives.c",
+        "code/libbt-vendor/codec/sbc/sbc_primitives_mmx.c",
+        "code/libbt-vendor/codec/sbc/sbc_primitives_neon.c",
+    ],
+
+    shared_libs: [
+        "libc",
+        "liblog",
+        "libutils",
+        "libcutils",
+    ],
+
+    cflags: [
+        "-Wno-error=unused-parameter",
+        "-Wno-ignored-attributes",
+    ],
+}
+
+cc_binary {
+    name: "rtkcmd",
+    vendor: true,
+    srcs: [
+        "code/rtkcmd/rtkcmd.c",
+    ]
+}

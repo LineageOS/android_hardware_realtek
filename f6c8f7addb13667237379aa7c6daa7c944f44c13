@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "cd2eabfd_a35d8440",
+        "filename": "wlan/wpa_supplicant_8_lib/Android.bp",
+        "patchSetId": 3
+      },
+      "lineNbr": 9,
+      "author": {
+        "id": 13648
+      },
+      "writtenOn": "2025-01-12T08:23:07Z",
+      "side": 1,
+      "message": "should be vendor / soc_specific.",
+      "revId": "f6c8f7addb13667237379aa7c6daa7c944f44c13",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    }
+  ]
+}

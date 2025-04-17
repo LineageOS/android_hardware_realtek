@@ -6,8 +6,8 @@
 
 cc_library_static {
     name: "lib_driver_cmd_rtl",
+    defaults: [ "wpa_supplicant_cflags_defaults" ],
     vendor: true,
-    compile_multilib: "both",
 
     srcs: [
         "driver_cmd_nl80211.c",
@@ -30,6 +30,14 @@ cc_library_static {
         "libutils",
         "libcutils",
     ],
+
+    arch: {
+        arm: {
+            cflags: [
+                "-mabi=aapcs-linux",
+            ],
+        },
+    },
 
     cflags: [
         "-DCONFIG_P2P",

@@ -300,7 +300,7 @@ public:
 
         result = requestResponse(request);
         if (result != WIFI_SUCCESS) {
-            ALOGE("Failed to register debug response; result = %d", result);
+            //ALOGE("Failed to register debug response; result = %d", result);
         }
         return result;
     }

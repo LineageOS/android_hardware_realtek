@@ -189,8 +189,9 @@ static void rtkbt_heartbeat_cmpl_cback (void *p_params)
 }
 
 
-static void heartbeat_timed_out()//(union sigval arg)
+static void heartbeat_timed_out(union sigval arg)
 {
+    RTK_UNUSED(arg);
     Rtk_Service_Data *p_buf;
     int count;
 

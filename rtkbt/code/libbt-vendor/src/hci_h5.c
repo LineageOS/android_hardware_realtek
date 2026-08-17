@@ -1739,7 +1739,7 @@ static bool h5_recv(tHCI_H5_CB *h5, uint8_t *data, int count)
 /******************************************************************************
 **  Static functions
 ******************************************************************************/
-static void data_ready_cb_thread(void *arg)
+static void *data_ready_cb_thread(void *arg)
 {
     RTK_UNUSED(arg);
     sk_buff *skb;
@@ -1772,10 +1772,10 @@ static void data_ready_cb_thread(void *arg)
 
     H5LogMsg("data_ready_cb_thread exiting");
     pthread_exit(NULL);
-
+    return NULL;
 }
 
-static void data_retransfer_thread(void *arg)
+static void *data_retransfer_thread(void *arg)
 {
     RTK_UNUSED(arg);
     uint16_t events;
@@ -1847,7 +1847,7 @@ static void data_retransfer_thread(void *arg)
 
     H5LogMsg("data_retransfer_thread exiting");
     pthread_exit(NULL);
-
+    return NULL;
 }
 
 void h5_retransfer_signal_event(uint16_t event)
@@ -1879,7 +1879,7 @@ static int create_data_retransfer_thread()
     pthread_cond_init(&rtk_h5.cond, NULL);
 
     if (pthread_create(&rtk_h5.thread_data_retrans, &thread_attr, \
-               (void*)data_retransfer_thread, NULL) != 0)
+               data_retransfer_thread, NULL) != 0)
     {
         ALOGE("pthread_create thread_data_retrans failed!");
         h5_retransfer_running = 0;
@@ -1926,7 +1926,7 @@ static int create_data_ready_cb_thread()
     pthread_cond_init(&rtk_h5.data_cond, NULL);
 
     if (pthread_create(&rtk_h5.thread_data_ready_cb, &thread_attr, \
-               (void*)data_ready_cb_thread, NULL) != 0)
+               data_ready_cb_thread, NULL) != 0)
     {
         ALOGE("pthread_create thread_data_ready_cb failed!");
         h5_data_ready_running = 0;

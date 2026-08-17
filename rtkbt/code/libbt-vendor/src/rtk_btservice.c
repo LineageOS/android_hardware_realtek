@@ -387,8 +387,9 @@ static void Rtk_Service_Send_Hwerror_Event()
 
 }
 
-static void* cmdready_thread()
+static void* cmdready_thread(void *arg)
 {
+    RTK_UNUSED(arg);
     //Rtkqueuedata* rtk_data;
 
     while(rtk_btservice->cmdqueue_thread_running)
@@ -643,8 +644,9 @@ static int rtk_socket_accept(int socketfd)
     return 0;
 }
 
-static void *epoll_thread()
+static void *epoll_thread(void *arg)
 {
+    RTK_UNUSED(arg);
     struct epoll_event events[64];
     int nfds=0;
     int i=0;

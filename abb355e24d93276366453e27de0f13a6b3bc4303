@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "ca75ebdb_5f003417",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 2
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 32674
+      },
+      "writtenOn": "2026-08-18T02:46:35Z",
+      "side": 1,
+      "message": "Works on oppen. Need more opinions about this.\n\nThis requires building realtek_wpa_supplicant.conf and therefore requires decommonizing wpa_supplicant.conf.",
+      "revId": "abb355e24d93276366453e27de0f13a6b3bc4303",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    }
+  ]
+}
